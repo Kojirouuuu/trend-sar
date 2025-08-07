@@ -1,0 +1,87 @@
+package com.example.utils;
+
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.time.LocalDateTime;
+import java.time.Duration;
+import java.time.format.DateTimeFormatter;
+import java.io.File;
+
+public class Writer {
+    private static void ensureDirectoryExists(String filename) {
+        File file = new File(filename);
+        File parentDir = file.getParentFile();
+        if (parentDir != null && !parentDir.exists()) {
+            parentDir.mkdirs();
+        }
+    }
+
+    public static void writeParametersToCSV(String filename, int N, int k_ave, double lambdaMin, double lambdaMax, double dlambda, double gamma, double rho0Min, double rho0Max, double drho0, int T, int tmax) {
+        ensureDirectoryExists(filename);
+        try (PrintWriter writer = new PrintWriter(new FileWriter(filename, false))) { // true: 追記, false: 上書き
+            writer.println("N,k_ave,lambdaMin,lambdaMax,dlambda,gamma,rho0Min,rho0Max,drho0,T,tmax");
+            writer.println(N + "," + k_ave + "," + lambdaMin + "," + lambdaMax + "," + dlambda + "," + gamma + "," + rho0Min + "," + rho0Max + "," + drho0 + "," + T + "," + tmax);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void writeResultsToCSV(String filename, int[][][][] results, double[] list1, double[] list2, int[] times, String list1Name, String list2Name) {
+        ensureDirectoryExists(filename);
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename, false))) {
+            // ヘッダー行を書き込み
+            writer.write("value");
+            writer.newLine();
+            
+            // 各状態、パラメータ、時間ステップの結果を1行ずつ出力
+            for (int stateId = 0; stateId < results.length; stateId++) {
+                for (int list1Idx = 0; list1Idx < list1.length; list1Idx++) {
+                    for (int list2Idx = 0; list2Idx < list2.length; list2Idx++) {
+                        for (int timeIdx = 0; timeIdx < times.length; timeIdx++) {
+                            writer.write(String.format("%d", results[stateId][list1Idx][list2Idx][timeIdx]));
+                            writer.newLine();
+                        }
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void writeMetadataToCSV(String filename, LocalDateTime startTime, LocalDateTime endTime) {
+        ensureDirectoryExists(filename);
+        try (PrintWriter writer = new PrintWriter(new FileWriter(filename, false))) {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            Duration duration = Duration.between(startTime, endTime);
+            
+            // システム情報を取得
+            String osName = System.getProperty("os.name");
+            String osVersion = System.getProperty("os.version");
+            String javaVersion = System.getProperty("java.version");
+            String javaVendor = System.getProperty("java.vendor");
+            String processorCount = System.getProperty("os.availableProcessors");
+            String totalMemory = String.valueOf(Runtime.getRuntime().totalMemory() / (1024 * 1024)) + " MB";
+            String maxMemory = String.valueOf(Runtime.getRuntime().maxMemory() / (1024 * 1024)) + " MB";
+            
+            writer.println("項目,値");
+            writer.println("シミュレーション開始時間," + startTime.format(formatter));
+            writer.println("シミュレーション終了時間," + endTime.format(formatter));
+            writer.println("実行時間（秒）," + duration.getSeconds());
+            writer.println("実行時間（分）," + String.format("%.2f", duration.getSeconds() / 60.0));
+            writer.println("実行時間（時間）," + String.format("%.2f", duration.getSeconds() / 3600.0));
+            writer.println("OS名," + osName);
+            writer.println("OSバージョン," + osVersion);
+            writer.println("Javaバージョン," + javaVersion);
+            writer.println("Javaベンダー," + javaVendor);
+            writer.println("利用可能プロセッサ数," + processorCount);
+            writer.println("総メモリ," + totalMemory);
+            writer.println("最大メモリ," + maxMemory);
+            
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}

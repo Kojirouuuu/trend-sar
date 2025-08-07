@@ -1,0 +1,158 @@
+---
+alwaysApply: true
+---
+# CURSOR Rules for Java Practice Repository
+
+## 1. 目的
+
+Java の基礎（クラス設計・メソッド設計・ファイル I/O）を、ネットワーク上の感染ダイナミクスシミュレーションという題材を通じて学ぶ。再現性とコラボレーションを確保するため、Git と Pull Request ベースの開発フローに従う。
+
+## 2. ブランチ戦略
+
+| ブランチ              | 用途             | 備考                                   |
+| ----------------- | -------------- | ------------------------------------ |
+| `main`            | 常にデプロイ可能な状態を保持 | GitHub Actions で CI/CD が走る           |
+| `develop`         | 次リリース候補の統合     | `main` への PR を作る前にマージ                |
+| `feature/<topic>` | 新規機能・リファクタ・実験  | `develop` ブランチから派生し、PR で `develop` へ |
+| `fix/<issue>`     | バグ修正           | 緊急度が高い場合は `main` へ直接 PR も可           |
+
+## 3. コミットルール — **Conventional Commits**
+
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+* **type**: `feat` `fix` `docs` `style` `refactor` `test` `chore`
+* **scope**: モジュール名・パッケージ名（例: `simulation`, `io`, `docs`）
+* **subject**: 50 字以内、命令形現在形、日本語可
+* **body**: 72 字折り返しで詳細。Why ↔ How を明記。
+* **footer**: 関連 Issue (`Closes #12`) や BREAKING CHANGE
+
+> 例: `feat(simulation): 感染確率を CLI オプション化`
+
+### コミット粒度
+
+* 1 つの概念的変更 = 1 commit
+* テストと実装は同じ commit に含める
+* `git add -p` で差分を小さく保つ
+
+## 4. Pull Request ルール
+
+1. **タイトル**: コミットメッセージと同じフォーマット
+2. **テンプレート**（下記を PR Description に貼り付け）
+
+   ```md
+   ### 変更内容
+   -
+
+   ### 動機 / 背景
+   -
+
+   ### 動作確認手順
+1. `cd java-project && mvn test`
+2. `cd java-project && mvn exec:java`
+
+   ### その他
+   - 関連 Issue: #
+   ```
+3. **Draft** を活用：実装途中なら Draft、レビューが欲しい段階で Ready
+4. **レビュー要件**: 少なくとも 1 LGTM + CI Green
+5. **Squash Merge** を使用（履歴を整理）
+
+## 5. コーディングガイドライン
+
+### パッケージ設計
+
+* `com.example` をトップレベル
+* 責務ごとに `network`, `simulation`, `utils` 等を分割
+* `network.topology` でネットワークトポロジー（BA, ER, RR）を管理
+
+### クラス設計の原則
+
+* 単一責任
+* 不変オブジェクトを優先
+* `interface` で戦略を切替可能に（例: `InfectionStrategy`）
+
+### メソッド設計
+
+* 引数は 3 つ以下に抑える；多い場合は DTO
+* 副作用を最小化
+* 例外は `IllegalArgumentException`, `IOException` など具体的に
+
+### ファイル書き出し
+
+* `java.nio.file.Files` + `BufferedWriter`
+* 出力先: `java-project/output/`
+* CSV ファイル: `metadata.csv`, `parameters.csv`, `results.csv`
+
+### テスト
+
+* JUnit 4（pom.xmlで設定済み）
+
+## 6. シミュレーション仕様
+
+| パラメータ     | 説明            | デフォルト |
+| --------- | ------------- | ----- |
+| `--nodes` | ノード数          | 100   |
+| `--beta`  | 感染確率 (0‑1)    | 0.03  |
+| `--gamma` | 回復確率 (0‑1)    | 0.01  |
+| `--steps` | シミュレーションステップ数 | 500   |
+
+* グラフは Erdos‑Renyi (`p=0.1`) を初期値とするが、任意に切替可。
+* 結果は `CSV` として書き出し、`gnuplot` や Python でプロット。
+
+## 7. ディレクトリ構成例
+
+```
+trend-sar/
+├── .gitignore
+├── java-project/
+│   ├── pom.xml
+│   ├── output/
+│   │   ├── metadata.csv
+│   │   ├── parameters.csv
+│   │   └── results.csv
+│   └── src/
+│       ├── main/java/com/example/
+│       │   ├── App.java
+│       │   ├── network/
+│       │   │   ├── Network.java
+│       │   │   └── topology/
+│       │   │       ├── BA.java
+│       │   │       ├── ER.java
+│       │   │       └── RR.java
+│       │   ├── simulation/
+│       │   │   └── sar.java
+│       │   └── utils/
+│       │       ├── Array.java
+│       │       └── Writer.java
+│       └── test/java/com/example/
+│           └── AppTest.java
+├── sar-simulation/
+└── scripts/
+    ├── run-app.sh
+    └── run-other-app.sh
+```
+
+## 8. 学習のすすめ
+
+1. **Issue を立てる**: やりたい学習項目を Issue 化
+2. **feature ブランチで実装**
+3. **PR** を作成し、自分でセルフレビュー
+4. **マージ後**、`java-project` ディレクトリで `mvn exec:java` を実行
+
+## 9. 参考資料
+
+* [Conventional Commits](https://www.conventionalcommits.org/)
+* 『Effective Java 第3版』
+* 『Java パフォーマンス最適化』
+* Graph/感染症数理モデル: \[“Network Science” – A‑L Barabási]
+
+---
+
+このドキュメントに更新が必要な場合は、Issue または PR で提案してください。
+
