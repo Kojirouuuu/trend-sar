@@ -12,20 +12,22 @@ import java.time.LocalDateTime;
 public class App {
     public static void main( String[] args ) {
         // ======== シミュレーションパラメータ ========
-        String networkType = "BA";
+        String networkType = "ER";
         int N = 10000;
         int k_ave = 10;
         double lambdaMin = 0.0;  // 最小感染率を上げる
         double lambdaMax = 1.0;
-        double dlambda = 0.025;
+        double dlambda = 0.001;
         double gamma = 1.0;  // 回復率を下げる
         double rho0Min = 0.0;  // 最小初期感染率を上げる
         double rho0Max = 1.0;
-        double drho0 = 0.025;
+        double drho0 = 0.001;
         int T = 3;
-        int tmax = 100;
+        int tmax = 50;
+        int batchNum = 10;
+        int itrPerBatch = 20;
 
-        Network network = BA.generateBA(N, k_ave, k_ave);
+        Network network = ER.generateER(N, k_ave / (N - 1));
 
         int[] thresholdList = new int[network.N];
         for (int i = 0; i < network.N; i++) {
@@ -39,25 +41,31 @@ public class App {
         int rho0Length = rho0List.length;
         // 4次元配列: [stateId][lambdaIdx][rho0Idx][time]
         // stateId: 0=S, 1=I, 2=R
-        int[][][][] results = new int[3][lambdaLength][rho0Length][tmax + 1];
 
         LocalDateTime startTime = LocalDateTime.now();
 
-        for (int lambdaIdx = 0; lambdaIdx < lambdaLength; lambdaIdx++) {
-            double lambda = lambdaList[lambdaIdx];
-            for (int rho0Idx = 0; rho0Idx < rho0Length; rho0Idx++) {
-                double rho0 = rho0List[rho0Idx];
-                int[][] result = sar.simulateToTmax(network, lambda, gamma, rho0, tmax, thresholdList);
-                // S, I, Rの3つの状態を保存
-                results[0][lambdaIdx][rho0Idx] = result[0]; // S
-                results[1][lambdaIdx][rho0Idx] = result[1]; // I
-                results[2][lambdaIdx][rho0Idx] = result[2]; // R
+        for (int batchIdx = 0; batchIdx < batchNum; batchIdx++) {
+            int[][][][] results = new int[3][lambdaLength][rho0Length][itrPerBatch][tmax + 1];
+
+            for (int itrIdx = 0; itrIdx < itrPerBatch; itrIdx++) {
+                for (int lambdaIdx = 0; lambdaIdx < lambdaLength; lambdaIdx++) {
+                    double lambda = lambdaList[lambdaIdx];
+                    for (int rho0Idx = 0; rho0Idx < rho0Length; rho0Idx++) {
+                        double rho0 = rho0List[rho0Idx];
+                        int[][] result = sar.simulateToTmax(network, lambda, gamma, rho0, tmax, thresholdList);
+                        // S, I, Rの3つの状態を保存
+                        results[0][lambdaIdx][rho0Idx][itrIdx] = result[0]; // S
+                        results[1][lambdaIdx][rho0Idx][itrIdx] = result[1]; // I
+                        results[2][lambdaIdx][rho0Idx][itrIdx] = result[2]; // R
+                    }
+                }
             }
+
+            Writer.writeResultsToCSV("output/results_" + batchIdx + ".csv", results, lambdaList, rho0List, itrPerBatch, tmax, "lambda", "rho0");
         }
 
         LocalDateTime endTime = LocalDateTime.now();
-        Writer.writeParametersToCSV("output/parameters.csv", N, k_ave, lambdaMin, lambdaMax, dlambda, gamma, rho0Min, rho0Max, drho0, T, tmax);
-        Writer.writeResultsToCSV("output/results.csv", results, lambdaList, rho0List, Array.arange(0, tmax, 1), "lambda", "rho0");
+        Writer.writeParametersToCSV("output/parameters.csv", N, k_ave, lambdaMin, lambdaMax, dlambda, gamma, rho0Min, rho0Max, drho0, T, tmax, batchNum, itrPerBatch);
         Writer.writeMetadataToCSV("output/metadata.csv", startTime, endTime);
     }
 }

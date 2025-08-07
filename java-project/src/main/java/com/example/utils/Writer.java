@@ -18,17 +18,17 @@ public class Writer {
         }
     }
 
-    public static void writeParametersToCSV(String filename, int N, int k_ave, double lambdaMin, double lambdaMax, double dlambda, double gamma, double rho0Min, double rho0Max, double drho0, int T, int tmax) {
+    public static void writeParametersToCSV(String filename, int N, int k_ave, double lambdaMin, double lambdaMax, double dlambda, double gamma, double rho0Min, double rho0Max, double drho0, int T, int tmax, int batchNum, int itrPerBatch) {
         ensureDirectoryExists(filename);
         try (PrintWriter writer = new PrintWriter(new FileWriter(filename, false))) { // true: 追記, false: 上書き
-            writer.println("N,k_ave,lambdaMin,lambdaMax,dlambda,gamma,rho0Min,rho0Max,drho0,T,tmax");
-            writer.println(N + "," + k_ave + "," + lambdaMin + "," + lambdaMax + "," + dlambda + "," + gamma + "," + rho0Min + "," + rho0Max + "," + drho0 + "," + T + "," + tmax);
+            writer.println("N,k_ave,lambdaMin,lambdaMax,dlambda,gamma,rho0Min,rho0Max,drho0,T,tmax,batchNum,itrPerBatch");
+            writer.println(N + "," + k_ave + "," + lambdaMin + "," + lambdaMax + "," + dlambda + "," + gamma + "," + rho0Min + "," + rho0Max + "," + drho0 + "," + T + "," + tmax + "," + batchNum + "," + itrPerBatch);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public static void writeResultsToCSV(String filename, int[][][][] results, double[] list1, double[] list2, int[] times, String list1Name, String list2Name) {
+    public static void writeResultsToCSV(String filename, int[][][][][] results, double[] list1, double[] list2, int itr, int tmax, String list1Name, String list2Name) {
         ensureDirectoryExists(filename);
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename, false))) {
             // ヘッダー行を書き込み
@@ -39,9 +39,11 @@ public class Writer {
             for (int stateId = 0; stateId < results.length; stateId++) {
                 for (int list1Idx = 0; list1Idx < list1.length; list1Idx++) {
                     for (int list2Idx = 0; list2Idx < list2.length; list2Idx++) {
-                        for (int timeIdx = 0; timeIdx < times.length; timeIdx++) {
-                            writer.write(String.format("%d", results[stateId][list1Idx][list2Idx][timeIdx]));
-                            writer.newLine();
+                        for (int itrIdx = 0; itrIdx < itr; itrIdx++) {
+                            for (int timeIdx = 0; timeIdx < tmax; timeIdx++) {
+                                writer.write(String.format("%d", results[stateId][list1Idx][list2Idx][itrIdx][timeIdx]));
+                                writer.newLine();
+                            }
                         }
                     }
                 }
