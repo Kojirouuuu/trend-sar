@@ -9,12 +9,13 @@ import java.util.HashSet;
 import java.util.ArrayList;
 
 /**
- * 一般的なSARモデルのシミュレーションを行うクラス
+ * 流行効果付きSARモデルのシミュレーションを行うクラス
  * ノードの状態は0: 未感染, 1: 感染, 2: 回復
- * 全ての頂点は閾値Tを持ち、その頂点が口コミを受け取った数が閾値Tに達したとき、採用者となる
+ * 周りの採用者が多いほど、飽きにくくなる（Rになりにくい）。
  */
 
-public class SAR {
+
+public class SAR01 {
 
     public static int[][] simulateToTmax(Network network, double lambda, double gamma, double rho0, int tmax, int[] thresholdList) {
         // 返り値
@@ -46,10 +47,6 @@ public class SAR {
         S[0] = network.N - initialInfectedNum;
         I[0] = initialInfectedNum;
         R[0] = 0;
-        
-        // デバッグ用: 初期状態を出力
-        // System.out.println("Initial state - S: " + S[0] + ", I: " + I[0] + ", R: " + R[0]);
-        // System.out.println("Parameters - lambda: " + lambda + ", gamma: " + gamma + ", rho0: " + rho0);
 
         int timeStep;
         for (timeStep = 0; timeStep < tmax; timeStep++) {
@@ -62,17 +59,23 @@ public class SAR {
 
             for (int i = 0; i < network.N; i++) {
                 if (state[i] == 1) {
-                    if (random.nextDouble() < gamma) {
-                        newRecovered.add(i);
-                    }
                     int[] neighbors = network.getNeighbors(i);
+                    int adoptedNeighbors = 0;
                     for (int neighbor : neighbors) {
-                        if (state[neighbor] == 0 && random.nextDouble() < lambda) {
-                            informedNeighbors.get(neighbor).add(i);
-                            if (informedNeighbors.get(neighbor).size() >= thresholdList[neighbor]) {
-                                newAdopters.add(neighbor);
+                        if (state[neighbor] == 1) {
+                            adoptedNeighbors++;
+                        }
+                        else if (state[neighbor] == 0) {
+                            if (random.nextDouble() < lambda) {
+                                informedNeighbors.get(neighbor).add(i);
+                                if (informedNeighbors.get(neighbor).size() >= thresholdList[neighbor]) {
+                                    newAdopters.add(neighbor);
+                                }
                             }
                         }
+                    }
+                    if (random.nextDouble() < gamma / (1 + adoptedNeighbors)) {
+                        newRecovered.add(i);
                     }
                 }
             }
@@ -95,12 +98,6 @@ public class SAR {
             S[timeStep + 1] = S[timeStep] - newAdopters.size();
             I[timeStep + 1] = I[timeStep] + newAdopters.size() - newRecovered.size();
             R[timeStep + 1] = R[timeStep] + newRecovered.size();
-            
-            // デバッグ用: 最初の数ステップを出力
-            // if (timeStep < 5) {
-            //     System.out.println("Step " + (timeStep + 1) + " - S: " + S[timeStep + 1] + ", I: " + I[timeStep + 1] + ", R: " + R[timeStep + 1]);
-            //     System.out.println("New adopters: " + newAdopters.size() + ", New recovered: " + newRecovered.size());
-            // }
         }
 
         if (timeStep < tmax) {

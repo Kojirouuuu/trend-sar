@@ -17,11 +17,11 @@ public class App {
         int k_ave = 10;
         double lambdaMin = 0.0;  // 最小感染率を上げる
         double lambdaMax = 1.0;
-        double dlambda = 0.001;
+        double dlambda = 0.025;
         double gamma = 1.0;  // 回復率を下げる
         double rho0Min = 0.0;  // 最小初期感染率を上げる
         double rho0Max = 1.0;
-        double drho0 = 0.001;
+        double drho0 = 0.025;
         int T = 3;
         int tmax = 50;
         int batchNum = 10;
@@ -45,7 +45,7 @@ public class App {
         LocalDateTime startTime = LocalDateTime.now();
 
         for (int batchIdx = 0; batchIdx < batchNum; batchIdx++) {
-            int[][][][] results = new int[3][lambdaLength][rho0Length][itrPerBatch][tmax + 1];
+            int[][][][][] results = new int[3][lambdaLength][rho0Length][itrPerBatch][tmax + 1];
 
             for (int itrIdx = 0; itrIdx < itrPerBatch; itrIdx++) {
                 for (int lambdaIdx = 0; lambdaIdx < lambdaLength; lambdaIdx++) {
