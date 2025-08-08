@@ -4,7 +4,7 @@ import com.example.network.Network;
 import com.example.network.topology.BA;
 import com.example.network.topology.ER;
 import com.example.network.topology.RR;
-import com.example.simulation.sar;
+import com.example.simulation.SAR;
 import com.example.utils.Array;
 import com.example.utils.Writer;
 import java.time.LocalDateTime;
@@ -52,7 +52,7 @@ public class App {
                     double lambda = lambdaList[lambdaIdx];
                     for (int rho0Idx = 0; rho0Idx < rho0Length; rho0Idx++) {
                         double rho0 = rho0List[rho0Idx];
-                        int[][] result = sar.simulateToTmax(network, lambda, gamma, rho0, tmax, thresholdList);
+                        int[][] result = SAR.simulateToTmax(network, lambda, gamma, rho0, tmax, thresholdList);
                         // S, I, Rの3つの状態を保存
                         results[0][lambdaIdx][rho0Idx][itrIdx] = result[0]; // S
                         results[1][lambdaIdx][rho0Idx][itrIdx] = result[1]; // I
@@ -65,7 +65,7 @@ public class App {
         }
 
         LocalDateTime endTime = LocalDateTime.now();
-        Writer.writeParametersToCSV("output/parameters.csv", N, k_ave, lambdaMin, lambdaMax, dlambda, gamma, rho0Min, rho0Max, drho0, T, tmax, batchNum, itrPerBatch);
+        Writer.writeParametersToCSV("output/parameters.csv", networkType,N, k_ave, lambdaMin, lambdaMax, dlambda, gamma, rho0Min, rho0Max, drho0, T, tmax, batchNum, itrPerBatch);
         Writer.writeMetadataToCSV("output/metadata.csv", startTime, endTime);
     }
 }

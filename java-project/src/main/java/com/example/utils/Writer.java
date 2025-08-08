@@ -18,7 +18,7 @@ public class Writer {
         }
     }
 
-    public static void writeParametersToCSV(String filename, int N, int k_ave, double lambdaMin, double lambdaMax, double dlambda, double gamma, double rho0Min, double rho0Max, double drho0, int T, int tmax, int batchNum, int itrPerBatch) {
+    public static void writeParametersToCSV(String filename, String networkType, int N, int k_ave, double lambdaMin, double lambdaMax, double dlambda, double gamma, double rho0Min, double rho0Max, double drho0, int T, int tmax, int batchNum, int itrPerBatch) {
         ensureDirectoryExists(filename);
         try (PrintWriter writer = new PrintWriter(new FileWriter(filename, false))) { // true: 追記, false: 上書き
             writer.println("N,k_ave,lambdaMin,lambdaMax,dlambda,gamma,rho0Min,rho0Max,drho0,T,tmax,batchNum,itrPerBatch");
