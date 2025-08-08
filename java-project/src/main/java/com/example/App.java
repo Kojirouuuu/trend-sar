@@ -44,11 +44,26 @@ public class App {
 
         LocalDateTime startTime = LocalDateTime.now();
 
+        // パラメータをCSVに保存
+        Writer.writeParametersToCSV("output/parameters.csv", networkType,N, k_ave, lambdaMin, lambdaMax, dlambda, gamma, rho0Min, rho0Max, drho0, T, tmax, batchNum, itrPerBatch);
+
         for (int batchIdx = 0; batchIdx < batchNum; batchIdx++) {
+            boolean isPrintBatch = batchIdx % 1 == 0;
+            if (isPrintBatch) {
+                System.out.println(String.format("Processing batch %d ...", batchIdx));
+            }
             int[][][][][] results = new int[3][lambdaLength][rho0Length][itrPerBatch][tmax + 1];
 
             for (int itrIdx = 0; itrIdx < itrPerBatch; itrIdx++) {
+                boolean isPrintIteration = isPrintBatch && itrIdx % 10 == 0;
+                if (isPrintIteration) {
+                    System.out.println(String.format("  --> iteration %d ...", itrIdx));
+                }
                 for (int lambdaIdx = 0; lambdaIdx < lambdaLength; lambdaIdx++) {
+                    boolean isPrintLambda = isPrintIteration && lambdaIdx % 10 == 0;
+                    if (isPrintLambda) {
+                        System.out.println(String.format("    --> lambda %d ...", lambdaIdx));
+                    }
                     double lambda = lambdaList[lambdaIdx];
                     for (int rho0Idx = 0; rho0Idx < rho0Length; rho0Idx++) {
                         double rho0 = rho0List[rho0Idx];
@@ -65,7 +80,10 @@ public class App {
         }
 
         LocalDateTime endTime = LocalDateTime.now();
+
+        // 念の為、もう一度パラメータをCSVに保存
         Writer.writeParametersToCSV("output/parameters.csv", networkType,N, k_ave, lambdaMin, lambdaMax, dlambda, gamma, rho0Min, rho0Max, drho0, T, tmax, batchNum, itrPerBatch);
+        // メタデータをCSVに保存
         Writer.writeMetadataToCSV("output/metadata.csv", startTime, endTime);
     }
 }
