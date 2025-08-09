@@ -21,14 +21,24 @@ public class Writer {
     public static void writeParametersToCSV(String filename, String networkType, int N, int k_ave, double lambdaMin, double lambdaMax, double dlambda, double gamma, double rho0Min, double rho0Max, double drho0, int T, int tmax, int batchNum, int itrPerBatch) {
         ensureDirectoryExists(filename);
         try (PrintWriter writer = new PrintWriter(new FileWriter(filename, false))) { // true: 追記, false: 上書き
-            writer.println("N,k_ave,lambdaMin,lambdaMax,dlambda,gamma,rho0Min,rho0Max,drho0,T,tmax,batchNum,itrPerBatch");
-            writer.println(N + "," + k_ave + "," + lambdaMin + "," + lambdaMax + "," + dlambda + "," + gamma + "," + rho0Min + "," + rho0Max + "," + drho0 + "," + T + "," + tmax + "," + batchNum + "," + itrPerBatch);
+            writer.println("networkType,N,k_ave,lambdaMin,lambdaMax,dlambda,gamma,rho0Min,rho0Max,drho0,T,tmax,batchNum,itrPerBatch");
+            writer.println(networkType + "," + N + "," + k_ave + "," + lambdaMin + "," + lambdaMax + "," + dlambda + "," + gamma + "," + rho0Min + "," + rho0Max + "," + drho0 + "," + T + "," + tmax + "," + batchNum + "," + itrPerBatch);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public static void writeResultsToCSV(String filename, int[][][][][] results, double[] list1, double[] list2, int itr, int tmax, String list1Name, String list2Name) {
+    /**
+     * シミュレーション結果をCSVファイルに書き出す
+     * @param filename 出力ファイル名
+     * @param results 5次元配列 [stateId][list1Idx][list2Idx][itrIdx][timeIdx]
+     *                stateId: 0=S, 1=A, 2=R
+     * @param list1 第1パラメータリスト（lambda値）
+     * @param list2 第2パラメータリスト（rho0値）
+     * @param itr バッチあたりの反復回数
+     * @param tmax 最大時間ステップ
+     */
+    public static void writeResultsToCSV(String filename, int[][][][][] results, double[] list1, double[] list2, int itr, int tmax) {
         ensureDirectoryExists(filename);
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename, false))) {
             // ヘッダー行を書き込み
@@ -36,11 +46,13 @@ public class Writer {
             writer.newLine();
             
             // 各状態、パラメータ、時間ステップの結果を1行ずつ出力
+            // 順序: [stateId][list1Idx][list2Idx][itrIdx][timeIdx]
+            // stateId: 0=S, 1=A, 2=R
             for (int stateId = 0; stateId < results.length; stateId++) {
                 for (int list1Idx = 0; list1Idx < list1.length; list1Idx++) {
                     for (int list2Idx = 0; list2Idx < list2.length; list2Idx++) {
                         for (int itrIdx = 0; itrIdx < itr; itrIdx++) {
-                            for (int timeIdx = 0; timeIdx < tmax; timeIdx++) {
+                            for (int timeIdx = 0; timeIdx < tmax + 1; timeIdx++) {
                                 writer.write(String.format("%d", results[stateId][list1Idx][list2Idx][itrIdx][timeIdx]));
                                 writer.newLine();
                             }
@@ -71,9 +83,7 @@ public class Writer {
             writer.println("項目,値");
             writer.println("シミュレーション開始時間," + startTime.format(formatter));
             writer.println("シミュレーション終了時間," + endTime.format(formatter));
-            writer.println("実行時間（秒）," + duration.getSeconds());
-            writer.println("実行時間（分）," + String.format("%.2f", duration.getSeconds() / 60.0));
-            writer.println("実行時間（時間）," + String.format("%.2f", duration.getSeconds() / 3600.0));
+            writer.println("実行時間（hh:mm:ss）," + String.format("%.2f", duration.getSeconds() / 3600.0) + ":" + String.format("%.2f", duration.getSeconds() / 60.0) + ":" + String.format("%.2f", duration.getSeconds()));
             writer.println("OS名," + osName);
             writer.println("OSバージョン," + osVersion);
             writer.println("Javaバージョン," + javaVersion);

@@ -1,5 +1,9 @@
 package com.example.network;
 
+import com.example.network.topology.BA;
+import com.example.network.topology.ER;
+import com.example.network.topology.RR;
+
 /**
  * グラフ構造を表現するクラス
  * ネットワークのノードとエッジの情報を管理
@@ -9,6 +13,18 @@ public class Network {
     public int[] edgeList;   // 各ノードの隣接ノードリスト
     public int[] addressList;  // 各ノードのアドレス情報
     public int[] cursorList;   // 各ノードの現在の隣接ノード数
+
+    public static Network generateNetwork(String networkType, int N, int k_ave) {
+        if (networkType.equals("ER")) {
+            return ER.generateER(N, ((double)k_ave / (N - 1)));
+        } else if (networkType.equals("BA")) {
+            return BA.generateBA(N, k_ave, k_ave);
+        } else if (networkType.equals("RR")) {
+            return RR.generateRR(N, k_ave);
+        } else {
+            throw new IllegalArgumentException("無効なネットワークタイプ: " + networkType);
+        }
+    }
 
     /**
      * グラフの基本情報を表示
