@@ -16,7 +16,7 @@ import java.util.ArrayList;
 
 
 public class SAR01 {
-
+    
     public static int[][] simulateToTmax(String networkType, int N, int k_ave, double lambda, double gamma, double rho0, int tmax, int T) {
         // 返り値
         int[] S = new int[tmax + 1];

@@ -1,10 +1,6 @@
 package com.example;
 
-import com.example.network.Network;
-import com.example.network.topology.BA;
-import com.example.network.topology.ER;
-import com.example.network.topology.RR;
-import com.example.simulation.SAR01;
+import com.example.simulation.SAR01;  
 import com.example.utils.Array;
 import com.example.utils.Writer;
 import java.time.LocalDateTime;
