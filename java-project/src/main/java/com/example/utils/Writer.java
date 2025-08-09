@@ -18,11 +18,18 @@ public class Writer {
         }
     }
 
-    public static void writeParametersToCSV(String filename, String networkType, int N, int k_ave, double lambdaMin, double lambdaMax, double dlambda, double gamma, double rho0Min, double rho0Max, double drho0, int T, int tmax, int batchNum, int itrPerBatch) {
+    /**
+     * Paramsオブジェクトを使用してパラメータをCSVに書き出す
+     * @param filename 出力ファイル名
+     * @param params パラメータオブジェクト
+     */
+    public static void writeParametersToCSV(String filename, Params params) {
         ensureDirectoryExists(filename);
         try (PrintWriter writer = new PrintWriter(new FileWriter(filename, false))) { // true: 追記, false: 上書き
-            writer.println("networkType,N,k_ave,lambdaMin,lambdaMax,dlambda,gamma,rho0Min,rho0Max,drho0,T,tmax,batchNum,itrPerBatch");
-            writer.println(networkType + "," + N + "," + k_ave + "," + lambdaMin + "," + lambdaMax + "," + dlambda + "," + gamma + "," + rho0Min + "," + rho0Max + "," + drho0 + "," + T + "," + tmax + "," + batchNum + "," + itrPerBatch);
+            // ヘッダー行を書き込み
+            writer.println(params.toCsvHeader());
+            // 値行を書き込み
+            writer.println(params.toCsvValues());
         } catch (IOException e) {
             e.printStackTrace();
         }

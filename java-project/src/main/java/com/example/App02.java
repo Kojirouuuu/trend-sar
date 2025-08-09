@@ -1,6 +1,6 @@
 package com.example;
 
-import com.example.simulation.SAR01;  
+import com.example.simulation.SAR02;  
 import com.example.utils.Array;
 import com.example.utils.Writer;
 import com.example.utils.Params;
@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 import java.lang.Runtime;
 import java.util.stream.IntStream;
 
-public class App {
+public class App02 {
     public static void main( String[] args ) {
         // ======== シミュレーションパラメータ ========
         String networkType = "ER";
@@ -17,20 +17,22 @@ public class App {
         double lambdaMin = 0.0;  // 最小感染率を上げる
         double lambdaMax = 1.0;
         double dlambda = 0.01;
-        double gamma = 1.0;  // 回復率を下げる
-        double rho0Min = 0.0;  // 最小初期感染率を上げる
-        double rho0Max = 1.0;
-        double drho0 = 0.01;
-        int T = 3;
-        int tmax = 50;
+        double gamma = 1.0;
+        double rho0 = 0.003;
+        double alphaMin = 0.0;
+        double alphaMax = 1.0;
+        double dalpha = 0.01;
+        int transmissionThreshold = 1;
+        int trendThreshold = 4;
+        int tmax = 100;
         int batchNum = (int)(Runtime.getRuntime().availableProcessors() * 0.75);
         int itrPerBatch = 10;
 
         double[] lambdaList = Array.arange(lambdaMin, lambdaMax, dlambda);
-        double[] rho0List = Array.arange(rho0Min, rho0Max, drho0);
+        double[] alphaList = Array.arange(alphaMin, alphaMax, dalpha);
 
         int lambdaLength = lambdaList.length;
-        int rho0Length = rho0List.length;
+        int alphaLength = alphaList.length;
         // 5次元配列: [stateId][lambdaIdx][rho0Idx][itrIdx][timeIdx]
         // stateId: 0=S, 1=A, 2=R
 
@@ -45,19 +47,21 @@ public class App {
             .put("lambdaMax", lambdaMax)
             .put("dlambda", dlambda)
             .put("gamma", gamma)
-            .put("rho0Min", rho0Min)
-            .put("rho0Max", rho0Max)
-            .put("drho0", drho0)
-            .put("T", T)
+            .put("rho0", rho0)
+            .put("alphaMin", alphaMin)
+            .put("alphaMax", alphaMax)
+            .put("dalpha", dalpha)
+            .put("transmissionThreshold", transmissionThreshold)
+            .put("trendThreshold", trendThreshold)
             .put("tmax", tmax)
             .put("batchNum", batchNum)
             .put("itrPerBatch", itrPerBatch);
-
+        
         // パラメータをCSVに保存
-        Writer.writeParametersToCSV("output/sar01/parameters.csv", params);
+        Writer.writeParametersToCSV("output/sar02/parameters.csv", params);
 
         IntStream.range(0, batchNum).parallel().forEach(batchIdx -> {
-            int[][][][][] results = new int[3][lambdaLength][rho0Length][itrPerBatch][tmax + 1];
+            int[][][][][] results = new int[3][lambdaLength][alphaLength][itrPerBatch][tmax + 1];
 
             for (int lambdaIdx = 0; lambdaIdx < lambdaLength; lambdaIdx++) {
                 if (lambdaIdx % 10 == 0) {
@@ -66,25 +70,25 @@ public class App {
                     }
                 }
                 double lambda = lambdaList[lambdaIdx];
-                for (int rho0Idx = 0; rho0Idx < rho0Length; rho0Idx++) {
-                    double rho0 = rho0List[rho0Idx];
+                for (int alphaIdx = 0; alphaIdx < alphaLength; alphaIdx++) {
+                    double alpha = alphaList[alphaIdx];
                     for (int itrIdx = 0; itrIdx < itrPerBatch; itrIdx++) {
-                        int[][] result = SAR01.simulateToTmax(networkType, N, k_ave, lambda, gamma, rho0, tmax, T);
+                        int[][] result = SAR02.simulateToTmax(networkType, N, k_ave, lambda, gamma, alpha, rho0, tmax, transmissionThreshold, trendThreshold);
                         // S, A, Rの3つの状態を保存
-                        results[0][lambdaIdx][rho0Idx][itrIdx] = result[0]; // S
-                        results[1][lambdaIdx][rho0Idx][itrIdx] = result[1]; // A
-                        results[2][lambdaIdx][rho0Idx][itrIdx] = result[2]; // R
+                        results[0][lambdaIdx][alphaIdx][itrIdx] = result[0]; // S
+                        results[1][lambdaIdx][alphaIdx][itrIdx] = result[1]; // A
+                        results[2][lambdaIdx][alphaIdx][itrIdx] = result[2]; // R
                     }
                 }
             }
 
-            Writer.writeResultsToCSV("output/results_" + batchIdx + ".csv", results, lambdaList, rho0List, itrPerBatch, tmax);
+            Writer.writeResultsToCSV("output/sar02/results_" + batchIdx + ".csv", results, lambdaList, alphaList, itrPerBatch, tmax);
             System.out.println(String.format("Completed batch %02d", batchIdx));
         });
 
         LocalDateTime endTime = LocalDateTime.now();
 
         // メタデータをCSVに保存
-        Writer.writeMetadataToCSV("output/metadata.csv", startTime, endTime);
+        Writer.writeMetadataToCSV("output/sar02/metadata.csv", startTime, endTime);
     }
 }
