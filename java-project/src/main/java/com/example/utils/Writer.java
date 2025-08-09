@@ -83,7 +83,9 @@ public class Writer {
             writer.println("項目,値");
             writer.println("シミュレーション開始時間," + startTime.format(formatter));
             writer.println("シミュレーション終了時間," + endTime.format(formatter));
-            writer.println("実行時間（hh:mm:ss）," + String.format("%.2f", duration.getSeconds() / 3600.0) + ":" + String.format("%.2f", duration.getSeconds() / 60.0) + ":" + String.format("%.2f", duration.getSeconds()));
+            writer.println("実行時間（秒）," + duration.getSeconds());
+            writer.println("実行時間（分）," + String.format("%.2f", duration.getSeconds() / 60.0));
+            writer.println("実行時間（時間）," + String.format("%.2f", duration.getSeconds() / 3600.0));
             writer.println("OS名," + osName);
             writer.println("OSバージョン," + osVersion);
             writer.println("Javaバージョン," + javaVersion);
