@@ -9,9 +9,10 @@ import java.util.HashSet;
 import java.util.ArrayList;
 
 /**
- * 一般的なSARモデルのシミュレーションを行うクラス
  * ノードの状態は0: 未感染, 1: 感染, 2: 回復
- * 全ての頂点は閾値Tを持ち、その頂点が口コミを受け取った数が閾値Tに達したとき、採用者となる
+ * 全ての頂点は閾値Tを持ち、その頂点が口コミを受け取った数が閾値transmissionThresholdに達したとき、採用者となる
+ * 各タイムステップで、 その時点の採用者の全体における割合に応じて（ α * A(t) / N ）、平均場的な流行効果が与えられる。
+ * 流行効果をtrendThreshold回受け取ったとき、採用者となる。
  */
 
 public class SAR02 {
@@ -99,7 +100,7 @@ public class SAR02 {
                     }
                 }
                 else if (state[i] == 0) {
-                    if (random.nextDouble() < alpha) {
+                    if (random.nextDouble() < alpha * curAdoptedNum / network.N) {
                         numHadTrendEffect[i]++;
                         if (numHadTrendEffect[i] >= trendThresholdList[i]) {
                             state[i] = 1;

@@ -11,14 +11,14 @@ import java.util.stream.IntStream;
 public class App {
     public static void main( String[] args ) {
         // ======== シミュレーションパラメータ ========
-        String networkType = "ER";
-        int N = 4000;
+        String networkType = "BA";
+        int N = 10000;
         int k_ave = 10;
-        double lambdaMin = 0.0;  // 最小感染率を上げる
+        double lambdaMin = 0.0;
         double lambdaMax = 1.0;
         double dlambda = 0.01;
-        double gamma = 1.0;  // 回復率を下げる
-        double rho0Min = 0.0;  // 最小初期感染率を上げる
+        double gamma = 1.0;
+        double rho0Min = 0.0;
         double rho0Max = 1.0;
         double drho0 = 0.01;
         int T = 3;
@@ -54,7 +54,8 @@ public class App {
             .put("itrPerBatch", itrPerBatch);
 
         // パラメータをCSVに保存
-        Writer.writeParametersToCSV("output/sar01/parameters.csv", params);
+        String outputPath = "output/sar01/" + networkType + "/";
+        Writer.writeParametersToCSV(outputPath + "parameters.csv", params);
 
         IntStream.range(0, batchNum).parallel().forEach(batchIdx -> {
             int[][][][][] results = new int[3][lambdaLength][rho0Length][itrPerBatch][tmax + 1];
@@ -78,13 +79,13 @@ public class App {
                 }
             }
 
-            Writer.writeResultsToCSV("output/results_" + batchIdx + ".csv", results, lambdaList, rho0List, itrPerBatch, tmax);
+            Writer.writeResultsToCSV(outputPath + "results_" + batchIdx + ".csv", results, lambdaList, rho0List, itrPerBatch, tmax);
             System.out.println(String.format("Completed batch %02d", batchIdx));
         });
 
         LocalDateTime endTime = LocalDateTime.now();
 
         // メタデータをCSVに保存
-        Writer.writeMetadataToCSV("output/metadata.csv", startTime, endTime);
+        Writer.writeMetadataToCSV(outputPath + "metadata.csv", startTime, endTime);
     }
 }

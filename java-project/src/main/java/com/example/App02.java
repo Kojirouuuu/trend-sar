@@ -14,19 +14,19 @@ public class App02 {
         String networkType = "ER";
         int N = 4000;
         int k_ave = 10;
-        double lambdaMin = 0.0;  // 最小感染率を上げる
+        double lambdaMin = 0.0;
         double lambdaMax = 1.0;
         double dlambda = 0.01;
-        double gamma = 1.0;
+        double gamma = 0.8;
         double rho0 = 0.003;
         double alphaMin = 0.0;
         double alphaMax = 1.0;
         double dalpha = 0.01;
         int transmissionThreshold = 1;
-        int trendThreshold = 4;
+        int trendThreshold = 2;
         int tmax = 100;
         int batchNum = (int)(Runtime.getRuntime().availableProcessors() * 0.75);
-        int itrPerBatch = 10;
+        int itrPerBatch = 20;
 
         double[] lambdaList = Array.arange(lambdaMin, lambdaMax, dlambda);
         double[] alphaList = Array.arange(alphaMin, alphaMax, dalpha);
