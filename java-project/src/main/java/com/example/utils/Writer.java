@@ -72,6 +72,39 @@ public class Writer {
         }
     }
 
+    /**
+     * シミュレーション結果をCSVファイルに書き出す
+     * @param filename 出力ファイル名
+     * @param results 4次元配列 [list1Idx][list2Idx][itrIdx][timeIdx]
+     * @param list1 第1パラメータリスト（lambda値）
+     * @param list2 第2パラメータリスト（rho0値）
+     * @param itr バッチあたりの反復回数
+     * @param tmax 最大時間ステップ
+     */
+    public static void writeOneStateResultsToCSV(String filename, int[][][][] results, double[] list1, double[] list2, int itr, int tmax) {
+        ensureDirectoryExists(filename);
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename, false))) {
+            // ヘッダー行を書き込み
+            writer.write("value");
+            writer.newLine();
+            
+            // 各状態、パラメータ、時間ステップの結果を1行ずつ出力
+            // 順序: [list1Idx][list2Idx][itrIdx][timeIdx]
+            for (int list1Idx = 0; list1Idx < list1.length; list1Idx++) {
+                for (int list2Idx = 0; list2Idx < list2.length; list2Idx++) {
+                    for (int itrIdx = 0; itrIdx < itr; itrIdx++) {
+                        for (int timeIdx = 0; timeIdx < tmax + 1; timeIdx++) {
+                            writer.write(String.format("%d", results[list1Idx][list2Idx][itrIdx][timeIdx]));
+                            writer.newLine();
+                        }
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     public static void writeMetadataToCSV(String filename, LocalDateTime startTime, LocalDateTime endTime) {
         ensureDirectoryExists(filename);
         try (PrintWriter writer = new PrintWriter(new FileWriter(filename, false))) {
