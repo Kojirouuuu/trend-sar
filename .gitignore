@@ -61,3 +61,5 @@ output/
 # Temporary files
 *.tmp
 *.temp 
+
+test-notebooks/

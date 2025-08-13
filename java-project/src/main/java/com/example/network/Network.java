@@ -18,7 +18,7 @@ public class Network {
         if (networkType.equals("ER")) {
             return ER.generateER(N, ((double)k_ave / (N - 1)));
         } else if (networkType.equals("BA")) {
-            return BA.generateBA(N, k_ave, k_ave);
+            return BA.generateBA(N, k_ave/2, k_ave/2);
         } else if (networkType.equals("RR")) {
             return RR.generateRR(N, k_ave);
         } else {

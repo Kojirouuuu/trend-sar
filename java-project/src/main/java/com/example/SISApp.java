@@ -1,6 +1,6 @@
 package com.example;
 
-import com.example.simulation.SAR01;  
+import com.example.simulation.SIS01;  
 import com.example.utils.Array;
 import com.example.utils.Writer;
 import com.example.utils.Params;
@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 import java.lang.Runtime;
 import java.util.stream.IntStream;
 
-public class App {
+public class SISApp {
     public static void main( String[] args ) {
         // ======== シミュレーションパラメータ ========
         String networkType = "ER";
@@ -18,19 +18,19 @@ public class App {
         double lambdaMax = 0.2;
         double dlambda = 0.005;
         double gamma = 1.0;
-        double rho0Min = 0.0;
-        double rho0Max = 0.3;
-        double drho0 = 0.01;
-        int T = 1;
+        double rho0 = (double)1 / N;
+        double cMin = 0.0;
+        double cMax = 1.0;
+        double dc = 0.01;
         int tmax = 50;
         int batchNum = (int)(Runtime.getRuntime().availableProcessors() * 0.75);
         int itrPerBatch = 10;
 
         double[] lambdaList = Array.arange(lambdaMin, lambdaMax, dlambda);
-        double[] rho0List = Array.arange(rho0Min, rho0Max, drho0);
+        double[] cList = Array.arange(cMin, cMax, dc);
 
         int lambdaLength = lambdaList.length;
-        int rho0Length = rho0List.length;
+        int cLength = cList.length;
         // 5次元配列: [stateId][lambdaIdx][rho0Idx][itrIdx][timeIdx]
         // stateId: 0=S, 1=A, 2=R
 
@@ -45,21 +45,20 @@ public class App {
             .put("lambdaMax", lambdaMax)
             .put("dlambda", dlambda)
             .put("gamma", gamma)
-            .put("rho0Min", rho0Min)
-            .put("rho0Max", rho0Max)
-            .put("drho0", drho0)
-            .put("T", T)
+            .put("rho0", rho0)
+            .put("cMin", cMin)
+            .put("cMax", cMax)
+            .put("dc", dc)
             .put("tmax", tmax)
             .put("batchNum", batchNum)
             .put("itrPerBatch", itrPerBatch);
 
         // パラメータをCSVに保存
-        String outputPath = "output/sar01/" + networkType + "/";
+        String outputPath = "output/sis01/" + networkType + "/";
         Writer.writeParametersToCSV(outputPath + "parameters.csv", params);
 
         IntStream.range(0, batchNum).parallel().forEach(batchIdx -> {
-            int[][][][][] results = new int[3][lambdaLength][rho0Length][itrPerBatch][tmax + 1];
-
+            int[][][][] results = new int[lambdaLength][cLength][itrPerBatch][tmax + 1];
             for (int lambdaIdx = 0; lambdaIdx < lambdaLength; lambdaIdx++) {
                 if (lambdaIdx % 10 == 0) {
                     synchronized (System.out) {
@@ -67,19 +66,16 @@ public class App {
                     }
                 }
                 double lambda = lambdaList[lambdaIdx];
-                for (int rho0Idx = 0; rho0Idx < rho0Length; rho0Idx++) {
-                    double rho0 = rho0List[rho0Idx];
+                for (int cIdx = 0; cIdx < cLength; cIdx++) {
+                    double c = cList[cIdx];
                     for (int itrIdx = 0; itrIdx < itrPerBatch; itrIdx++) {
-                        int[][] result = SAR01.simulateToTmax(networkType, N, k_ave, lambda, gamma, rho0, tmax, T);
-                        // S, A, Rの3つの状態を保存
-                        results[0][lambdaIdx][rho0Idx][itrIdx] = result[0]; // S
-                        results[1][lambdaIdx][rho0Idx][itrIdx] = result[1]; // A
-                        results[2][lambdaIdx][rho0Idx][itrIdx] = result[2]; // R
+                        int[][] result = SIS01.simulateToTmax(networkType, N, k_ave, lambda, gamma, rho0, tmax, c);
+                        results[lambdaIdx][cIdx][itrIdx] = result[0]; // I
                     }
                 }
             }
 
-            Writer.writeResultsToCSV(outputPath + "results_" + batchIdx + ".csv", results, lambdaList, rho0List, itrPerBatch, tmax);
+            Writer.writeOneStateResultsToCSV(outputPath + "results_" + batchIdx + ".csv", results, lambdaList, cList, itrPerBatch, tmax);
             System.out.println(String.format("Completed batch %02d", batchIdx));
         });
 
