@@ -72,6 +72,31 @@ public class Writer {
         }
     }
 
+    public static void writeFinalResultsToCSV(String filename, int[][][][] results, double[] list1, double[] list2, int itr) {
+        ensureDirectoryExists(filename);
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename, false))) {
+            // ヘッダー行を書き込み
+            writer.write("value");
+            writer.newLine();
+            
+            // 各状態、パラメータの結果を1行ずつ出力
+            // 順序: [stateId][list1Idx][list2Idx][itrIdx]
+            // stateId: 0=Adopted, 1=Recovered
+            for (int stateId = 0; stateId < results.length; stateId++) {
+                for (int list1Idx = 0; list1Idx < list1.length; list1Idx++) {
+                    for (int list2Idx = 0; list2Idx < list2.length; list2Idx++) {
+                        for (int itrIdx = 0; itrIdx < itr; itrIdx++) {
+                            writer.write(String.format("%d", results[stateId][list1Idx][list2Idx][itrIdx]));
+                            writer.newLine();
+                        }
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     /**
      * シミュレーション結果をCSVファイルに書き出す
      * @param filename 出力ファイル名
