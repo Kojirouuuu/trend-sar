@@ -72,6 +72,31 @@ public class Writer {
         }
     }
 
+    public static void writeFinalResultsToCSV(String filename, int[][][][] results, double[] list1, double[] list2, int itr) {
+        ensureDirectoryExists(filename);
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename, false))) {
+            // ヘッダー行を書き込み
+            writer.write("value");
+            writer.newLine();
+            
+            // 各状態、パラメータの結果を1行ずつ出力
+            // 順序: [stateId][list1Idx][list2Idx][itrIdx]
+            // stateId: 0=Adopted, 1=Recovered
+            for (int stateId = 0; stateId < results.length; stateId++) {
+                for (int list1Idx = 0; list1Idx < list1.length; list1Idx++) {
+                    for (int list2Idx = 0; list2Idx < list2.length; list2Idx++) {
+                        for (int itrIdx = 0; itrIdx < itr; itrIdx++) {
+                            writer.write(String.format("%d", results[stateId][list1Idx][list2Idx][itrIdx]));
+                            writer.newLine();
+                        }
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     /**
      * シミュレーション結果をCSVファイルに書き出す
      * @param filename 出力ファイル名
@@ -95,6 +120,40 @@ public class Writer {
                     for (int itrIdx = 0; itrIdx < itr; itrIdx++) {
                         for (int timeIdx = 0; timeIdx < tmax + 1; timeIdx++) {
                             writer.write(String.format("%d", results[list1Idx][list2Idx][itrIdx][timeIdx]));
+                            writer.newLine();
+                        }
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    /**
+     * シミュレーション結果をCSVファイルに書き出す
+     * @param filename 出力ファイル名
+     * @param results 4次元配列 [list1Idx][list2Idx][itrIdx][timeIdx]
+     * @param list1 第1パラメータリスト（lambda値）
+     * @param list2 第2パラメータリスト（rho0値）
+     * @param itr バッチあたりの反復回数
+     * @param tmax 最大時間ステップ
+     */
+    public static void write3ArgsOneStateResultsToCSV(String filename, int[][][][][] results, double[] list1, double[] list2, double[] list3, int itr, int tmax) {
+        ensureDirectoryExists(filename);
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename, false))) {
+            // ヘッダー行を書き込み
+            writer.write("value");
+            writer.newLine();
+            
+            // 各状態、パラメータ、時間ステップの結果を1行ずつ出力
+            // 順序: [list1Idx][list2Idx][itrIdx][timeIdx]
+            for (int list1Idx = 0; list1Idx < list1.length; list1Idx++) {
+                for (int list2Idx = 0; list2Idx < list2.length; list2Idx++) {
+                    for (int list3Idx = 0; list3Idx < list3.length; list3Idx++) {
+                        for (int itrIdx = 0; itrIdx < itr; itrIdx++) {
+                            for (int timeIdx = 0; timeIdx < tmax + 1; timeIdx++) {
+                                writer.write(String.format("%d", results[list1Idx][list2Idx][list3Idx][itrIdx][timeIdx]));
+                            }
                             writer.newLine();
                         }
                     }

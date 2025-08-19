@@ -3,10 +3,8 @@ package com.example.simulation;
 import com.example.network.Network;
 import java.util.Random;
 import com.example.utils.Array;
-import java.util.List;
 import java.util.Set;
 import java.util.HashSet;
-import java.util.ArrayList;
 
 /**
  * 一般的なSISモデルのシミュレーションを行うクラス
@@ -15,7 +13,7 @@ import java.util.ArrayList;
 
 public class SIS01 {
 
-    public static int[][] simulateToTmax(String networkType, int N, int k_ave, double lambda, double gamma, double rho0, int tmax, double c) {
+    public static int[] simulateToTmax(String networkType, int N, int k_ave, double lambda, double gamma, double rho0, int tmax, double c) {
         // 返り値
         int[] I = new int[tmax + 1];
 
@@ -72,8 +70,6 @@ public class SIS01 {
                             numInfectedNeighbors++;
                         }
                     }
-                }
-                else if (state[i] == 0) {
                     if (random.nextDouble() < (double)gamma / (c * numInfectedNeighbors + 1) ) {
                         newSusceptible.add(i);
                     }
@@ -99,7 +95,7 @@ public class SIS01 {
             }
         }
 
-        return new int[][] {I};
+        return I;
 
     }
     
