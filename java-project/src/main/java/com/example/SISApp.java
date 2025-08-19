@@ -26,8 +26,8 @@ public class SISApp {
         double c2 = 0.6;
         double[] cList = {c0, c1, c2};
         int tmax = 200;
-        int batchNum = (int)(Runtime.getRuntime().availableProcessors());
-        int itrPerBatch = 100;
+        int batchNum = 20;
+        int itrPerBatch = 10;
 
         double[] lambdaList = Array.arange(lambdaMin, lambdaMax, dlambda);
         double[] rho0List = Array.arange(rho0Min, rho0Max, drho0);

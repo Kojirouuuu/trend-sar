@@ -153,8 +153,8 @@ public class Writer {
                         for (int itrIdx = 0; itrIdx < itr; itrIdx++) {
                             for (int timeIdx = 0; timeIdx < tmax + 1; timeIdx++) {
                                 writer.write(String.format("%d", results[list1Idx][list2Idx][list3Idx][itrIdx][timeIdx]));
+                                writer.newLine();
                             }
-                            writer.newLine();
                         }
                     }
                 }
