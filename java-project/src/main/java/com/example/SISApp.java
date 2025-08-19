@@ -5,7 +5,6 @@ import com.example.utils.Array;
 import com.example.utils.Writer;
 import com.example.utils.Params;
 import java.time.LocalDateTime;
-import java.lang.Runtime;
 import java.util.stream.IntStream;
 
 public class SISApp {
