@@ -197,4 +197,51 @@ public class Writer {
             e.printStackTrace();
         }
     }
+
+    /**
+     * イベント履歴をCSVファイルに書き出す
+     * @param filename 出力ファイル名
+     * @param eventHistories 5次元配列 [cIdx][lambdaIdx][rho0Idx][itrIdx][eventIdx]
+     * @param cList cパラメータリスト
+     * @param lambdaList lambdaパラメータリスト
+     * @param rho0List rho0パラメータリスト
+     * @param itrPerBatch バッチあたりの反復回数
+     */
+    public static void writeEventHistoriesToCSV(String filename, Object[][][][][] eventHistories, double[] cList, double[] lambdaList, double[] rho0List, int itrPerBatch) {
+        ensureDirectoryExists(filename);
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename, false))) {
+            // ヘッダー行を書き込み
+            writer.write("value");
+            writer.newLine();
+            
+            // 各パラメータ、反復、イベントの結果を1行ずつ出力
+            // 順序: [cIdx][lambdaIdx][rho0Idx][itrIdx][eventIdx]
+            for (int cIdx = 0; cIdx < cList.length; cIdx++) {
+                for (int lambdaIdx = 0; lambdaIdx < lambdaList.length; lambdaIdx++) {
+                    for (int rho0Idx = 0; rho0Idx < rho0List.length; rho0Idx++) {
+                        for (int itrIdx = 0; itrIdx < itrPerBatch; itrIdx++) {
+                            Object[] simulationResult = eventHistories[cIdx][lambdaIdx][rho0Idx][itrIdx];
+                            if (simulationResult != null) {
+                                double[] eventTimes = (double[]) simulationResult[1];
+                                String[] eventTypes = (String[]) simulationResult[2];
+                                int[] eventNodes = (int[]) simulationResult[3];
+                                
+                                for (int eventIdx = 0; eventIdx < eventTimes.length; eventIdx++) {
+                                    // イベント時刻、種類、ノードIDを順番に出力
+                                    writer.write(String.format("%.6f", eventTimes[eventIdx]));
+                                    writer.newLine();
+                                    writer.write(eventTypes[eventIdx]);
+                                    writer.newLine();
+                                    writer.write(String.format("%d", eventNodes[eventIdx]));
+                                    writer.newLine();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 }

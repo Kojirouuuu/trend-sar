@@ -1,16 +1,17 @@
 package com.example;
 
 import com.example.simulation.SIS01;
+import com.example.network.Network;
 import com.example.utils.Array;
 import com.example.utils.Writer;
 import com.example.utils.Params;
 import java.time.LocalDateTime;
 import java.util.stream.IntStream;
 
-public class SISApp {
+public class ContinuousSISApp {
     public static void main( String[] args ) {
         // ======== シミュレーションパラメータ ========
-        String networkType = "ER";
+        String networkType = "RR";
         int N = 10000;
         int k_ave = 10;
         double lambdaMin = 0.0;
@@ -25,7 +26,7 @@ public class SISApp {
         int tmax = 200;
         int batchNum = 40;
         int itrPerBatch = 5;
-
+        double dt = 0.1;
         double[] lambdaList = Array.arange(lambdaMin, lambdaMax, dlambda);
         double[] rho0List = {rho01};
         double[] cList = {c0, c1, c2, c3};
@@ -60,8 +61,14 @@ public class SISApp {
         String outputPath = "output/sis01/" + networkType + "/" + "single_rho0/";
         Writer.writeParametersToCSV(outputPath + "parameters.csv", params);
 
+        Network network = Network.generateNetwork(networkType, N, k_ave);
+
         IntStream.range(0, batchNum).parallel().forEach(batchIdx -> {
+            // 5次元配列: [cIdx][lambdaIdx][rho0Idx][itrIdx][timeIdx] - 感染者数時系列
             int[][][][][] results = new int[cLength][lambdaLength][rho0Length][itrPerBatch][tmax + 1];
+            // イベント履歴を保存する配列: [cIdx][lambdaIdx][rho0Idx][itrIdx][eventIdx]
+            Object[][][][][] eventHistories = new Object[cLength][lambdaLength][rho0Length][itrPerBatch][];
+            
             for (int cIdx = 0; cIdx < cLength; cIdx++) {
                 LocalDateTime currentTime = LocalDateTime.now();
                 System.out.println(String.format("[%s] Batch %02d: c %02d/%02d ...", 
@@ -92,13 +99,26 @@ public class SISApp {
                         }
                         double rho0 = rho0List[rho0Idx];
                         for (int itrIdx = 0; itrIdx < itrPerBatch; itrIdx++) {
-                            results[cIdx][lambdaIdx][rho0Idx][itrIdx] = SIS01.simulateToTmax(networkType, N, k_ave, lambda, gamma, rho0, tmax, c);  
+                            // 連続時間シミュレーションを実行（イベント履歴付き）
+                            Object[] simulationResult = SIS01.simulateContinuousWithEvents(network, lambda, gamma, rho0, tmax, dt, c);
+                            
+                            // 感染者数時系列を取得
+                            int[] infectedTimeSeries = (int[]) simulationResult[0];
+                            results[cIdx][lambdaIdx][rho0Idx][itrIdx] = infectedTimeSeries;
+                            
+                            // イベント履歴を保存
+                            eventHistories[cIdx][lambdaIdx][rho0Idx][itrIdx] = simulationResult;
                         }
                     }
                 }
             }
 
+            // 感染者数時系列の結果をCSVに保存
             Writer.write3ArgsOneStateResultsToCSV(outputPath + "results_" + batchIdx + ".csv", results, cList, lambdaList, rho0List, itrPerBatch, tmax);
+            
+            // イベント履歴をCSVに保存
+            Writer.writeEventHistoriesToCSV(outputPath + "events_" + batchIdx + ".csv", eventHistories, cList, lambdaList, rho0List, itrPerBatch);
+            
             LocalDateTime completionTime = LocalDateTime.now();
             System.out.println(String.format("[%s] Completed batch %02d", 
                 completionTime.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), 
