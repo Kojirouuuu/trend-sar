@@ -10,7 +10,7 @@ import java.util.stream.IntStream;
 public class SISApp {
     public static void main( String[] args ) {
         // ======== シミュレーションパラメータ ========
-        String networkType = "ER";
+        String networkType = "BA";
         int N = 10000;
         int k_ave = 10;
         double lambdaMin = 0.0;
@@ -20,15 +20,16 @@ public class SISApp {
         double rho01 = (double) 1 / N;
         double c0 = 0.0;
         double c1 = 0.1;
-        double c2 = 0.2;
-        double c3 = 0.6;
+        double c2 = 0.8;
+        double c3 = 1.5;
+        double c4 = 10.0;
         int tmax = 200;
         int batchNum = 40;
-        int itrPerBatch = 5;
+        int itrPerBatch = 10;
 
         double[] lambdaList = Array.arange(lambdaMin, lambdaMax, dlambda);
         double[] rho0List = {rho01};
-        double[] cList = {c0, c1, c2, c3};
+        double[] cList = {c0, c1, c2, c3, c4};
 
         int lambdaLength = lambdaList.length;
         int rho0Length = rho0List.length;
