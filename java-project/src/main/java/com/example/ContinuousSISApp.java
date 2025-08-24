@@ -21,10 +21,10 @@ public class ContinuousSISApp {
         double rho01 = (double)1 / N;
         double c0 = 0.0, c1 = 0.3, c2 = 0.8, c3 = 1.4;
         // double c0 = 0.0, c1 = 1.0;
-        int tmax = 100;
+        int tmax = 40;
         int batchNum = 20;
         int itrPerBatch = 5;
-        double dt = 0.1;
+        double dt = 1;
 
         double[] lambdaList = Array.arange(lambdaMin, lambdaMax, dlambda);
         double[] rho0List = {rho01};
