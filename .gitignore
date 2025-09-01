@@ -58,6 +58,8 @@ output/
 *.txt
 *.out
 
+sis/
+
 # Temporary files
 *.tmp
 *.temp 
