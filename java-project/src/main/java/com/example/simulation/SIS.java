@@ -234,6 +234,11 @@ public class SIS {
             double u = rng.nextDouble();
             if (u <= 0.0) u = Double.MIN_VALUE; // guard
             double dt = -Math.log(u) / totalRate;
+            // Do not record events beyond tmax: if the next event time would
+            // exceed tmax, stop without advancing time or appending.
+            if (currentTime + dt > tmax) {
+                break;
+            }
             currentTime += dt;
 
             double r = rng.nextDouble() * totalRate;

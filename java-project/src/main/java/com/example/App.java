@@ -19,8 +19,8 @@ public class App {
     public static void main(String[] args) {
         // 単発の連続時間 SIS シミュレーションを実行し、イベント時刻と感染者数を表示
         String networkType = "RR"; // "ER", "BA", "RR" が利用可能
-        int N = 10000;
-        int k_ave = 10;
+        int N = 4000;
+        int k_ave = 16;
         double lambdaMin = 0.00;
         double lambdaMax = 0.40;
         double dlambda   = 0.005;
@@ -33,7 +33,10 @@ public class App {
 
         // itr 回繰り返し、各回のイベント列を1行CSVで書き出し
         int itr = 10; // 必要に応じて変更
-        int batchNum = 100;
+        int batchNum = 20;
+
+        String path = String.format("output/sis/N=%d", N);
+        ensureParentDir(path);
 
         Network net = Network.generateNetwork(networkType, N, k_ave);
 
@@ -48,11 +51,19 @@ public class App {
             .put("gamma", gamma)
             .put("rho0", rho0)
             .put("tmax", tmax)
-            .put("cList", "0.0,0.4,1.2")
             .put("seed", seed)
             .put("itr", itr)
             .put("batchNum", batchNum);
-        String paramPath = "output/sis/params.csv";
+        
+        String cListStr = "";
+        for (int i = 0; i < cList.length; i++) {
+            if (i > 0) cListStr += ":";
+            cListStr += String.format(Locale.US, "%.3f", cList[i]);
+
+        }
+        params.put("cList", cListStr);
+
+        String paramPath = String.format("%s/params.csv", path);
         Writer.writeParametersToCSV(paramPath, params);
 
         double[] lambdaList = Array.arange(lambdaMin, lambdaMax, dlambda);
@@ -121,7 +132,7 @@ public class App {
         long totalMemMB = Runtime.getRuntime().totalMemory() / (1024 * 1024);
         long maxMemMB = Runtime.getRuntime().maxMemory() / (1024 * 1024);
 
-        String metaPath = "output/sis/metadata.csv";
+        String metaPath = String.format("%s/metadata.csv", path);
         ensureParentDir(metaPath);
         try (BufferedWriter mw = new BufferedWriter(new FileWriter(metaPath, false))) {
             mw.write("key,value"); mw.newLine();
@@ -129,18 +140,6 @@ public class App {
             mw.write("end_time," + globalEnd.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))); mw.newLine();
             mw.write("duration_seconds," + String.format(Locale.US, "%.3f", elapsedNs / 1e9)); mw.newLine();
             mw.write("network_type," + networkType); mw.newLine();
-            mw.write("N," + N); mw.newLine();
-            mw.write("k_ave," + k_ave); mw.newLine();
-            mw.write("gamma," + gamma); mw.newLine();
-            mw.write("rho0," + rho0); mw.newLine();
-            mw.write("tmax," + tmax); mw.newLine();
-            mw.write("itr," + itr); mw.newLine();
-            mw.write("batch_num," + batchNum); mw.newLine();
-            mw.write("c_list,0.0,0.4,1.2"); mw.newLine();
-            mw.write("lambda_min," + lambdaMin); mw.newLine();
-            mw.write("lambda_max," + lambdaMax); mw.newLine();
-            mw.write("dlambda," + dlambda); mw.newLine();
-            mw.write("lambda_count," + lambdaCount); mw.newLine();
             mw.write("runs_per_batch," + runsPerBatch); mw.newLine();
             mw.write("total_runs," + totalRuns); mw.newLine();
             mw.write("seed_base," + seed); mw.newLine();
