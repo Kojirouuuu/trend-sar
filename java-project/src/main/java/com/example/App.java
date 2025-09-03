@@ -19,23 +19,23 @@ public class App {
     public static void main(String[] args) {
         // 単発の連続時間 SIS シミュレーションを実行し、イベント時刻と感染者数を表示
         String networkType = "RR"; // "ER", "BA", "RR" が利用可能
-        int N = 4000;
-        int k_ave = 16;
-        double lambdaMin = 0.00;
-        double lambdaMax = 0.40;
-        double dlambda   = 0.005;
+        int N = 10000;
+        int k_ave = 6;
+        double cMin = 0.00;
+        double cMax = 2.0;
+        double dc   = 0.01;
         double gamma = 1.0;
         double rho0 = 1.0; // 初期感染率
-        double tmax = 50.0;
+        double tmax = 60.0;
         // c の候補リスト
-        double[] cList = new double[] {0.0, 0.4, 1.2};
+        double[] lambdaList = new double[] {0.02, 0.05, 0.15, 0.25, 0.35};
         long seed = 0L;
 
         // itr 回繰り返し、各回のイベント列を1行CSVで書き出し
         int itr = 10; // 必要に応じて変更
-        int batchNum = 20;
+        int batchNum = 100;
 
-        String path = String.format("output/sis/N=%d", N);
+        String path = String.format("output/sis/%s/N=%d", networkType, N);
         ensureParentDir(path);
 
         Network net = Network.generateNetwork(networkType, N, k_ave);
@@ -45,9 +45,9 @@ public class App {
             .put("networkType", networkType)
             .put("N", N)
             .put("k_ave", k_ave)
-            .put("lambdaMin", lambdaMin)
-            .put("lambdaMax", lambdaMax)
-            .put("dlambda", dlambda)
+            .put("cMin", cMin)
+            .put("cMax", cMax)
+            .put("dc", dc)
             .put("gamma", gamma)
             .put("rho0", rho0)
             .put("tmax", tmax)
@@ -55,25 +55,26 @@ public class App {
             .put("itr", itr)
             .put("batchNum", batchNum);
         
-        String cListStr = "";
-        for (int i = 0; i < cList.length; i++) {
-            if (i > 0) cListStr += ":";
-            cListStr += String.format(Locale.US, "%.3f", cList[i]);
+        String lambdaListStr = "";
+        for (int i = 0; i < lambdaList.length; i++) {
+            if (i > 0) lambdaListStr += ":";
+            lambdaListStr += String.format(Locale.US, "%.3f", lambdaList[i]);
 
         }
-        params.put("cList", cListStr);
+        params.put("lambdaList", lambdaListStr);
 
         String paramPath = String.format("%s/params.csv", path);
         Writer.writeParametersToCSV(paramPath, params);
 
-        double[] lambdaList = Array.arange(lambdaMin, lambdaMax, dlambda);
+        double[] cList = Array.arange(cMin, cMax, dc);
 
         // 全体メタデータのための開始時刻
         LocalDateTime globalStart = LocalDateTime.now();
         long globalT0 = System.nanoTime();
 
+        System.out.println(String.format("[%s] Start simulation", globalStart.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
         IntStream.range(0, batchNum).parallel().forEach(b -> {
-            String outDir = String.format("output/sis/N=%d", N);
+            String outDir = path;
             String timeFile = outDir + String.format("/times_%02d.txt", b);
             String infectedFile = outDir + String.format("/infected_num_%02d.txt", b);
 
@@ -82,10 +83,10 @@ public class App {
 
             try (BufferedWriter tw = new BufferedWriter(new FileWriter(timeFile, false));
                  BufferedWriter iw = new BufferedWriter(new FileWriter(infectedFile, false))) {
-                for (int cIdx = 0; cIdx < cList.length; cIdx++) {
-                    double c = cList[cIdx];
-                    for (int lIdx = 0; lIdx < lambdaList.length; lIdx++) {
-                        double lambda = lambdaList[lIdx];
+                for (int lIdx = 0; lIdx < lambdaList.length; lIdx++) {
+                    double lambda = lambdaList[lIdx];
+                    for (int cIdx = 0; cIdx < cList.length; cIdx++) {
+                        double c = cList[cIdx];
                         for (int it2 = 0; it2 < itr; it2++) {
                             long runSeed = seed
                                     + it2
@@ -98,19 +99,22 @@ public class App {
 
                             // 時刻列: カンマ区切り
                             StringBuilder tsb = new StringBuilder();
-                            for (int k = 0; k < T.length; k++) {
-                                if (k > 0) tsb.append(',');
-                                tsb.append(String.format(Locale.US, "%.10f", T[k]));
-                            }
+
+                            tsb.append(T[T.length - 1]);
+                            // for (int k = 0; k < T.length; k++) {
+                            //     if (k > 0) tsb.append(',');
+                            //     tsb.append(String.format(Locale.US, "%.10f", T[k]));
+                            // }
                             tw.write(tsb.toString());
                             tw.newLine();
 
                             // 感染者数列: カンマ区切り
                             StringBuilder isb = new StringBuilder();
-                            for (int k = 0; k < I.length; k++) {
-                                if (k > 0) isb.append(',');
-                                isb.append(I[k]);
-                            }
+                            isb.append(I[I.length - 1]);
+                            // for (int k = 0; k < I.length; k++) {
+                            //     if (k > 0) isb.append(',');
+                            //     isb.append(I[k]);
+                            // }
                             iw.write(isb.toString());
                             iw.newLine();
                         }
@@ -120,13 +124,15 @@ public class App {
                 e.printStackTrace();
             }
 
+            System.out.println(String.format("[%s] Completed batch %02d", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), b));
+
         });
 
         // 総合メタデータを書き出す（全処理完了後）
         LocalDateTime globalEnd = LocalDateTime.now();
         long elapsedNs = System.nanoTime() - globalT0;
         int lambdaCount = lambdaList.length;
-        int runsPerBatch = cList.length * lambdaCount * itr;
+        int runsPerBatch = lambdaCount * cList.length * itr;
         long totalRuns = (long) runsPerBatch * batchNum;
         long cpuCores = Runtime.getRuntime().availableProcessors();
         long totalMemMB = Runtime.getRuntime().totalMemory() / (1024 * 1024);
