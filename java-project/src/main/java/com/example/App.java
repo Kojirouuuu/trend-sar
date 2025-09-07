@@ -21,21 +21,21 @@ public class App {
         String networkType = "RR"; // "ER", "BA", "RR" が利用可能
         int N = 10000;
         int k_ave = 6;
-        double cMin = 0.00;
-        double cMax = 2.0;
-        double dc   = 0.01;
+        double lambdaMin = 0.00;
+        double lambdaMax = 0.30;
+        double dlambda   = 0.005;
         double gamma = 1.0;
         double rho0 = 1.0; // 初期感染率
-        double tmax = 60.0;
+        double tmax = 400.0;
         // c の候補リスト
-        double[] lambdaList = new double[] {0.02, 0.05, 0.15, 0.25, 0.35};
+        double[] cList = new double[] {0.05, 0.10, 0.15, 0.20};
         long seed = 0L;
 
         // itr 回繰り返し、各回のイベント列を1行CSVで書き出し
         int itr = 10; // 必要に応じて変更
-        int batchNum = 100;
+        int batchNum = 48;
 
-        String path = String.format("output/sis/%s/N=%d", networkType, N);
+        String path = String.format("output/sis/%s/z=%d/N=%dame", networkType, k_ave, N);
         ensureParentDir(path);
 
         Network net = Network.generateNetwork(networkType, N, k_ave);
@@ -45,9 +45,9 @@ public class App {
             .put("networkType", networkType)
             .put("N", N)
             .put("k_ave", k_ave)
-            .put("cMin", cMin)
-            .put("cMax", cMax)
-            .put("dc", dc)
+            .put("lambdaMin", lambdaMin)
+            .put("lambdaMax", lambdaMax)
+            .put("dlambda", dlambda)
             .put("gamma", gamma)
             .put("rho0", rho0)
             .put("tmax", tmax)
@@ -55,18 +55,18 @@ public class App {
             .put("itr", itr)
             .put("batchNum", batchNum);
         
-        String lambdaListStr = "";
-        for (int i = 0; i < lambdaList.length; i++) {
-            if (i > 0) lambdaListStr += ":";
-            lambdaListStr += String.format(Locale.US, "%.3f", lambdaList[i]);
+        String cListStr = "";
+        for (int i = 0; i < cList.length; i++) {
+            if (i > 0) cListStr += ":";
+            cListStr += String.format(Locale.US, "%.3f", cList[i]);
 
         }
-        params.put("lambdaList", lambdaListStr);
+        params.put("cList", cListStr);
 
         String paramPath = String.format("%s/params.csv", path);
         Writer.writeParametersToCSV(paramPath, params);
 
-        double[] cList = Array.arange(cMin, cMax, dc);
+        double[] lambdaList = Array.arange(lambdaMin, lambdaMax, dlambda);
 
         // 全体メタデータのための開始時刻
         LocalDateTime globalStart = LocalDateTime.now();
@@ -83,10 +83,10 @@ public class App {
 
             try (BufferedWriter tw = new BufferedWriter(new FileWriter(timeFile, false));
                  BufferedWriter iw = new BufferedWriter(new FileWriter(infectedFile, false))) {
-                for (int lIdx = 0; lIdx < lambdaList.length; lIdx++) {
-                    double lambda = lambdaList[lIdx];
-                    for (int cIdx = 0; cIdx < cList.length; cIdx++) {
-                        double c = cList[cIdx];
+                for (int cIdx = 0; cIdx < cList.length; cIdx++) {
+                    double c = cList[cIdx];
+                    for (int lIdx = 0; lIdx < lambdaList.length; lIdx++) {
+                        double lambda = lambdaList[lIdx];
                         for (int it2 = 0; it2 < itr; it2++) {
                             long runSeed = seed
                                     + it2

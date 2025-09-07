@@ -65,3 +65,5 @@ sis/
 *.temp 
 
 test-notebooks/
+ame/
+AGENTS.md

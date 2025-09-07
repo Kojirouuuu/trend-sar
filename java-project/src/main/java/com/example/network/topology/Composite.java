@@ -125,6 +125,7 @@ public final class Composite {
 
         Network g = new Network();
         g.N = N;
+        g.networkType = "Composite";
         g.addressList = addressList;
         g.cursorList = cursorList;
         g.edgeList = edgeList;

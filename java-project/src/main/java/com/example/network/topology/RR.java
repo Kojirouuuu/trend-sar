@@ -123,6 +123,7 @@ public class RR {
         // ==== 4) Network へ詰め替え（CSR 風） ====
         Network g = new Network();
         g.N = N;
+        g.networkType = "RR";
         g.edgeList    = new int[N * k];
         g.addressList = new int[N];
         g.cursorList  = new int[N];

@@ -95,6 +95,7 @@ public class BA {
         // グラフオブジェクトの設定
         Network graph = new Network();
         graph.N = N;
+        graph.networkType = "BA";
         graph.edgeList = edgeListFinal;
         graph.addressList = addressList;
         graph.cursorList = cursorList;

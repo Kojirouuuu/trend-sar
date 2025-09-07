@@ -177,12 +177,21 @@ public class SIS {
         Fenwick bit = new Fenwick(N);
 
         // Initial infection
-        int initI = (int) Math.round(N * rho0);
+        int initI;
+        initI = (int) Math.round(N * rho0);
+
         if (rho0 == 0.0) initI = 0;
         else if (initI == 0 && rho0 > 0.0) initI = 1;
 
-        int[] indices = new int[N];
-        for (int i = 0; i < N; i++) indices[i] = i;
+        int[] indices;
+        if (network.networkType.equals("TwoRR")) {
+            indices = new int[(int) (N / 2.0)];
+            for (int i = 0; i < N / 2; i++) indices[i] = i;
+        } else {
+            indices = new int[N];
+            for (int i = 0; i < N; i++) indices[i] = i;
+        }
+
         int[] shuffled = com.example.utils.Array.shuffle(indices);
         for (int i = 0; i < initI; i++) state[shuffled[i]] = 1;
 
