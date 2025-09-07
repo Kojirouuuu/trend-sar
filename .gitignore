@@ -58,8 +58,12 @@ output/
 *.txt
 *.out
 
+sis/
+
 # Temporary files
 *.tmp
 *.temp 
 
 test-notebooks/
+ame/
+AGENTS.md

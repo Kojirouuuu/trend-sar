@@ -63,6 +63,7 @@ public class ER {
         // グラフオブジェクトの設定
         Network graph = new Network();
         graph.N = N;
+        graph.networkType = "ER";
         graph.edgeList = edgeList;
         graph.addressList = addressList;
         graph.cursorList = cursorList;
