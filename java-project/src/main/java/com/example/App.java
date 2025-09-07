@@ -19,11 +19,11 @@ public class App {
     public static void main(String[] args) {
         // 単発の連続時間 SIS シミュレーションを実行し、イベント時刻と感染者数を表示
         String networkType = "RR"; // "ER", "BA", "RR" が利用可能
-        int N = 1000;
+        int N = 100;
         int k_ave = 6;
         double lambdaMin = 0.00;
         double lambdaMax = 1.00;
-        double dlambda   = 0.01;
+        double dlambda   = 0.1;
         double cMin = 0.0;
         double cMax = 1.0;
         double dc = 0.01;
