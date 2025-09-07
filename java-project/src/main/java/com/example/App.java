@@ -19,7 +19,7 @@ public class App {
     public static void main(String[] args) {
         // 単発の連続時間 SIS シミュレーションを実行し、イベント時刻と感染者数を表示
         String networkType = "RR"; // "ER", "BA", "RR" が利用可能
-        int N = 100;
+        int N = 1000;
         int k_ave = 6;
         double lambdaMin = 0.00;
         double lambdaMax = 1.00;
@@ -33,8 +33,8 @@ public class App {
         long seed = 0L;
 
         // itr 回繰り返し、各回のイベント列を1行CSVで書き出し
-        int itr = 1; // 必要に応じて変更
-        int batchNum = 64;
+        int itr = 10; // 必要に応じて変更
+        int batchNum = 100;
 
         String path = String.format("output/sis/%s/z=%d/N=%dfinal", networkType, k_ave, N);
         ensureParentDir(path);
