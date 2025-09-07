@@ -19,23 +19,24 @@ public class App {
     public static void main(String[] args) {
         // 単発の連続時間 SIS シミュレーションを実行し、イベント時刻と感染者数を表示
         String networkType = "RR"; // "ER", "BA", "RR" が利用可能
-        int N = 10000;
+        int N = 100;
         int k_ave = 6;
         double lambdaMin = 0.00;
-        double lambdaMax = 0.30;
-        double dlambda   = 0.005;
+        double lambdaMax = 1.00;
+        double dlambda   = 0.01;
+        double cMin = 0.0;
+        double cMax = 1.0;
+        double dc = 0.01;
         double gamma = 1.0;
         double rho0 = 1.0; // 初期感染率
         double tmax = 400.0;
-        // c の候補リスト
-        double[] cList = new double[] {0.05, 0.10, 0.15, 0.20};
         long seed = 0L;
 
         // itr 回繰り返し、各回のイベント列を1行CSVで書き出し
-        int itr = 10; // 必要に応じて変更
-        int batchNum = 48;
+        int itr = 1; // 必要に応じて変更
+        int batchNum = 64;
 
-        String path = String.format("output/sis/%s/z=%d/N=%dame", networkType, k_ave, N);
+        String path = String.format("output/sis/%s/z=%d/N=%dfinal", networkType, k_ave, N);
         ensureParentDir(path);
 
         Network net = Network.generateNetwork(networkType, N, k_ave);
@@ -45,9 +46,6 @@ public class App {
             .put("networkType", networkType)
             .put("N", N)
             .put("k_ave", k_ave)
-            .put("lambdaMin", lambdaMin)
-            .put("lambdaMax", lambdaMax)
-            .put("dlambda", dlambda)
             .put("gamma", gamma)
             .put("rho0", rho0)
             .put("tmax", tmax)
@@ -55,18 +53,25 @@ public class App {
             .put("itr", itr)
             .put("batchNum", batchNum);
         
+        double[] cList = Array.arange(cMin, cMax + dc, dc);
+        double[] lambdaList = Array.arange(lambdaMin, lambdaMax + dlambda, dlambda);
+
         String cListStr = "";
         for (int i = 0; i < cList.length; i++) {
             if (i > 0) cListStr += ":";
             cListStr += String.format(Locale.US, "%.3f", cList[i]);
-
         }
         params.put("cList", cListStr);
 
+        String lambdaListStr = "";
+        for (int i = 0; i < lambdaList.length; i++) {
+            if (i > 0) lambdaListStr += ":";
+            lambdaListStr += String.format(Locale.US, "%.3f", lambdaList[i]);
+        }
+        params.put("lambdaList", lambdaListStr);
+
         String paramPath = String.format("%s/params.csv", path);
         Writer.writeParametersToCSV(paramPath, params);
-
-        double[] lambdaList = Array.arange(lambdaMin, lambdaMax, dlambda);
 
         // 全体メタデータのための開始時刻
         LocalDateTime globalStart = LocalDateTime.now();
