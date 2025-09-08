@@ -1,8 +1,8 @@
 package com.example;
 
 import com.example.network.Network;
-import com.example.network.topology.TwoRR;
-import com.example.simulation.SIS;
+import com.example.network.topology.EdgeTriangle;
+import com.example.simulation.SIR;
 import com.example.utils.Params;
 import com.example.utils.Array;
 import com.example.utils.Writer;
@@ -18,35 +18,35 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
- * 2つのRRネットワークを結合したネットワークでのSISシミュレーション
+ * 2つのRRネットワークを結合したネットワークでのSIRシミュレーション
  * 連続時間での感染ダイナミクスを解析する
  */
-public class TwoNetApp {
+public class TriangleSIR {
     
     public static void main(String[] args) {
         // === シミュレーションパラメータの設定 ===
-        String networkType = "2RR"; // "ER", "BA", "RR" が利用可能
+        String networkType = "EdgeTriangle";
         int N = 1000;
         int k_ave = 6;
-        double lambdaMin = 0.02;
-        double lambdaMax = 0.08;
-        double dlambda = 0.0005;
+        double lambdaMin = 0.00;
+        double lambdaMax = 0.30;
+        double dlambda = 0.005;
         double gamma = 1.0;
-        double rho0 = 1.0 / 2.0; // 初期感染率
+        double rho0 = 1.0 / N; // 初期感染率
         double tmax = 400.0;
         
-        // c の候補リスト
-        double[] cList = new double[] {2.5, 5.0};
-        int[] edgeNumList = new int[] {0, 1, 2, 10};
+        // beta の候補リスト
+        double[] betaList = new double[] {0.0, 0.5, 1.0};
+        double[] cList = new double[] {0.0, 0.05, 0.10, 0.15, 0.20};
         long seed = 0L;
 
         // itr 回繰り返し、各回のイベント列を1行CSVで書き出し
-        int itr = 10; // 必要に応じて変更
+        int itr = 5; // 必要に応じて変更
         int batchNum = 32;
 
         // === 出力ディレクトリの準備 ===
-        String fileType = "final";
-        String path = String.format("output/sis/%s/z=%d/N=%d%scmore", networkType, k_ave, N, fileType);
+        String fileType = "time";
+        String path = String.format("output/sir/%s/z=%d/N=%d%s", networkType, k_ave, N, fileType);
         ensureParentDir(path);
 
         // === パラメータを辞書っぽくCSVに保存 ===
@@ -61,6 +61,14 @@ public class TwoNetApp {
             .put("itr", itr)
             .put("batchNum", batchNum);
         
+        // betaListを文字列に変換
+        String betaListStr = "";
+        for (int i = 0; i < betaList.length; i++) {
+            if (i > 0) betaListStr += ":";
+            betaListStr += String.format(Locale.US, "%.3f", betaList[i]);
+        }
+        params.put("betaList", betaListStr);
+
         // cListを文字列に変換
         String cListStr = "";
         for (int i = 0; i < cList.length; i++) {
@@ -68,14 +76,6 @@ public class TwoNetApp {
             cListStr += String.format(Locale.US, "%.3f", cList[i]);
         }
         params.put("cList", cListStr);
-
-        // edgeNumListを文字列に変換
-        String edgeNumListStr = "";
-        for (int i = 0; i < edgeNumList.length; i++) {
-            if (i > 0) edgeNumListStr += ":";
-            edgeNumListStr += String.format(Locale.US, "%d", edgeNumList[i]);
-        }
-        params.put("edgeNumList", edgeNumListStr);
 
         // === lambda値のリストを生成 ===
         double[] lambdaList = Array.arange(lambdaMin, lambdaMax, dlambda);
@@ -96,26 +96,38 @@ public class TwoNetApp {
         System.out.println(String.format("[%s] Start simulation", 
             globalStart.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
         System.out.println(String.format("Run: Edge * c * lambda * itr = %d * %d * %d * %d = %d", 
-            edgeNumList.length, cList.length, lambdaList.length, itr, edgeNumList.length * cList.length * lambdaList.length * itr));
+            cList.length, betaList.length, lambdaList.length, itr, cList.length * betaList.length * lambdaList.length * itr));
 
         // === 並列シミュレーション実行 ===
         IntStream.range(0, batchNum).parallel().forEach(b -> {
             String outDir = path;
             String timeFile = outDir + String.format("/times_%02d.txt", b);
             String infectedFile = outDir + String.format("/infected_num_%02d.txt", b);
+            String recoveredFile = outDir + String.format("/recovered_num_%02d.txt", b);
 
             ensureParentDir(timeFile);
             ensureParentDir(infectedFile);
+            ensureParentDir(recoveredFile);
 
             try (BufferedWriter tw = new BufferedWriter(new FileWriter(timeFile, false));
-                 BufferedWriter iw = new BufferedWriter(new FileWriter(infectedFile, false))) {
+                 BufferedWriter iw = new BufferedWriter(new FileWriter(infectedFile, false));
+                 BufferedWriter rw = new BufferedWriter(new FileWriter(recoveredFile, false))) {
                 
-                for (int edgeNumIdx = 0; edgeNumIdx < edgeNumList.length; edgeNumIdx++) {
-                    int edgeNum = edgeNumList[edgeNumIdx];
-                    Network net = TwoRR.generate2RR(N, k_ave, N, k_ave, edgeNum, seed);
+                for (int c_idx = 0; c_idx < cList.length; c_idx++) {
+                    double c = cList[c_idx];
+                    int[] degree = new int[N];
+                    for (int i = 0; i < N; i++) degree[i] = k_ave;
+                    if (((long) N * k_ave) % 2L != 0L) {
+                        throw new IllegalArgumentException("N*k must be even for a simple undirected graph");
+                    }
+
+                    Network net = EdgeTriangle.generateFromDegreeAndTransitivity(N, degree, c, seed);
+                    double trans = net.transitivity();
+                    double avgC = net.averageClusteringCoefficient();
+                    System.out.println(String.format("c: %.3f, trans: %.3f, avgC: %.3f", c, trans, avgC));
                     
-                    for (int cIdx = 0; cIdx < cList.length; cIdx++) {
-                        double c = cList[cIdx];
+                    for (int betaIdx = 0; betaIdx < betaList.length; betaIdx++) {
+                        double beta = betaList[betaIdx];
                         
                         for (int lIdx = 0; lIdx < lambdaList.length; lIdx++) {
                             double lambda = lambdaList[lIdx];
@@ -124,19 +136,20 @@ public class TwoNetApp {
                                 // シード値の計算
                                 long runSeed = seed
                                     + it2
-                                    + (long) cIdx * 1_000_003L
+                                    + (long) c_idx * 1_000_003L
+                                    + (long) betaIdx * 1_000_003L
                                     + (long) lIdx * 10_007L
                                     + (long) b * 1_000_000_007L;
                                 
                                 // SISシミュレーション実行
-                                SIS.RunResult res = SIS.simulateOnce(net, lambda, gamma, rho0, tmax, c, runSeed);
+                                SIR.RunResult res = SIR.simulateOnce(net, lambda, gamma, rho0, tmax, beta, 0, runSeed);
                                 double[] T = res.times();
                                 int[] I = res.infectedSeries();
-
+                                int[] R = res.recoveredSeries();
                                 // 時刻列と感染者数列の出力
                                 StringBuilder tsb = new StringBuilder();
                                 StringBuilder isb = new StringBuilder();
-
+                                StringBuilder rsb = new StringBuilder();
                                 if (fileType.equals("time")) {
                                     // 全時刻と感染者数を出力
                                     for (int k = 0; k < T.length; k++) {
@@ -152,14 +165,26 @@ public class TwoNetApp {
                                     }
                                     iw.write(isb.toString());
                                     iw.newLine();
+
+                                    for (int k = 0; k < R.length; k++) {
+                                        if (k > 0) rsb.append(',');
+                                        rsb.append(R[k]);
+                                    }
+                                    rw.write(rsb.toString());
+                                    rw.newLine();
                                 } else {
                                     // 最終時刻と最終感染者数のみ出力
                                     tsb.append(T[T.length - 1]);
                                     tw.write(tsb.toString());
                                     tw.newLine();
+
                                     isb.append(I[I.length - 1]);
                                     iw.write(isb.toString());
                                     iw.newLine();
+
+                                    rsb.append(R[R.length - 1]);
+                                    rw.write(rsb.toString());
+                                    rw.newLine();
                                 }
 
                             }
