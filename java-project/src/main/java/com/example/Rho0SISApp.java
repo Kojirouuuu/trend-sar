@@ -1,8 +1,7 @@
 package com.example;
 
 import com.example.network.Network;
-import com.example.network.topology.TwoRR;
-import com.example.simulation.TwoNetSIS;
+import com.example.simulation.SIS;
 import com.example.utils.Params;
 import com.example.utils.Array;
 import com.example.utils.Writer;
@@ -21,32 +20,35 @@ import java.time.format.DateTimeFormatter;
  * 2つのRRネットワークを結合したネットワークでのSISシミュレーション
  * 連続時間での感染ダイナミクスを解析する
  */
-public class TwoNetSISApp {
+public class Rho0SISApp {
     
     public static void main(String[] args) {
         // === シミュレーションパラメータの設定 ===
-        String networkType = "2RR"; // "ER", "BA", "RR" が利用可能
-        int N = 1000;
+        String networkType = "RR"; // "ER", "BA", "RR" が利用可能
+        int N = 10000;
         int k_ave = 6;
-        double lambdaMin = 0.02;
-        double lambdaMax = 0.08;
-        double dlambda = 0.005;
+        double lambdaMin = 0.00;
+        double lambdaMax = 0.30;
+        double dlambda = 0.0025;
         double gamma = 1.0;
-        double rho0 = 1.0 / 2.0; // 初期感染率
         double tmax = 400.0;
         
         // c の候補リスト
-        double[] cList = new double[] {0.0, 1.0};
-        int[] edgeNumList = new int[] {0, 1, 2, 10};
+        double[] cList = new double[] {0.2, 1.0};
+        double[] rho0List = new double[] {1.0, 10.0, 40.0, 100.0};
+        for (int i = 0; i < rho0List.length; i++) {
+            rho0List[i] = rho0List[i] / N;
+        }
         long seed = 0L;
 
         // itr 回繰り返し、各回のイベント列を1行CSVで書き出し
         int itr = 10; // 必要に応じて変更
-        int batchNum = 16;
+        int batchNum = 48;
 
         // === 出力ディレクトリの準備 ===
         String fileType = "final";
-        String path = String.format("output/sis/%s/z=%d/N=%d%snew", networkType, k_ave, N, fileType);
+        String iniType = "nonbfs";
+        String path = String.format("output/sis/%s/z=%d/N=%d%s%s", networkType, k_ave, N, fileType, iniType);
         ensureParentDir(path);
 
         // === パラメータを辞書っぽくCSVに保存 ===
@@ -55,7 +57,6 @@ public class TwoNetSISApp {
             .put("N", N)
             .put("k_ave", k_ave)
             .put("gamma", gamma)
-            .put("rho0", rho0)
             .put("tmax", tmax)
             .put("seed", seed)
             .put("itr", itr)
@@ -70,15 +71,15 @@ public class TwoNetSISApp {
         params.put("cList", cListStr);
 
         // edgeNumListを文字列に変換
-        String edgeNumListStr = "";
-        for (int i = 0; i < edgeNumList.length; i++) {
-            if (i > 0) edgeNumListStr += ":";
-            edgeNumListStr += String.format(Locale.US, "%d", edgeNumList[i]);
+        String rho0ListStr = "";
+        for (int i = 0; i < rho0List.length; i++) {
+            if (i > 0) rho0ListStr += ":";
+            rho0ListStr += String.format(Locale.US, "%.8f", rho0List[i]);
         }
-        params.put("edgeNumList", edgeNumListStr);
+        params.put("rho0List", rho0ListStr);
 
         // === lambda値のリストを生成 ===
-        double[] lambdaList = Array.arange(lambdaMin, lambdaMax, dlambda);
+        double[] lambdaList = Array.arange(lambdaMin, lambdaMax + dlambda, dlambda);
         String lambdaListStr = "";
         for (int i = 0; i < lambdaList.length; i++) {
             if (i > 0) lambdaListStr += ":";
@@ -95,30 +96,24 @@ public class TwoNetSISApp {
 
         System.out.println(String.format("[%s] Start simulation", 
             globalStart.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
-        System.out.println(String.format("Run: Edge * c * lambda * itr = %d * %d * %d * %d = %d", 
-            edgeNumList.length, cList.length, lambdaList.length, itr, edgeNumList.length * cList.length * lambdaList.length * itr));
+        System.out.println(String.format("Run: rho0 * c * lambda * itr = %d * %d * %d * %d = %d", 
+            rho0List.length, cList.length, lambdaList.length, itr, rho0List.length * cList.length * lambdaList.length * itr));
 
         // === 並列シミュレーション実行 ===
         IntStream.range(0, batchNum).parallel().forEach(b -> {
             String outDir = path;
             String timeFile = outDir + String.format("/times_%02d.txt", b);
             String infectedFile = outDir + String.format("/infected_num_%02d.txt", b);
-            String infectedAFile = outDir + String.format("/infected_num_A_%02d.txt", b);
-            String infectedBFile = outDir + String.format("/infected_num_B_%02d.txt", b);
 
             ensureParentDir(timeFile);
             ensureParentDir(infectedFile);
-            ensureParentDir(infectedAFile);
-            ensureParentDir(infectedBFile);
 
             try (BufferedWriter tw = new BufferedWriter(new FileWriter(timeFile, false));
-                 BufferedWriter iw = new BufferedWriter(new FileWriter(infectedFile, false));
-                 BufferedWriter iwA = new BufferedWriter(new FileWriter(infectedAFile, false));
-                 BufferedWriter iwB = new BufferedWriter(new FileWriter(infectedBFile, false))) {
+                 BufferedWriter iw = new BufferedWriter(new FileWriter(infectedFile, false))) {
                 
-                for (int edgeNumIdx = 0; edgeNumIdx < edgeNumList.length; edgeNumIdx++) {
-                    int edgeNum = edgeNumList[edgeNumIdx];
-                    Network net = TwoRR.generate2RR(N, k_ave, N, k_ave, edgeNum, seed);
+                for (int rho0Idx = 0; rho0Idx < rho0List.length; rho0Idx++) {
+                    double rho0 = rho0List[rho0Idx];
+                    Network net = Network.generateNetwork(networkType, N, k_ave);
                     
                     for (int cIdx = 0; cIdx < cList.length; cIdx++) {
                         double c = cList[cIdx];
@@ -135,17 +130,13 @@ public class TwoNetSISApp {
                                     + (long) b * 1_000_000_007L;
                                 
                                 // SISシミュレーション実行
-                                TwoNetSIS.RunResult res = TwoNetSIS.simulateOnce(net, lambda, gamma, rho0, tmax, c, runSeed);
+                                SIS.RunResult res = SIS.simulateOnce(net, lambda, gamma, rho0, tmax, c, runSeed, iniType);
                                 double[] T = res.times();
                                 int[] I = res.infectedSeries();
-                                int[] IA = res.infectedSeriesA();
-                                int[] IB = res.infectedSeriesB();
 
                                 // 時刻列と感染者数列の出力
                                 StringBuilder tsb = new StringBuilder();
                                 StringBuilder isb = new StringBuilder();
-                                StringBuilder isbA = new StringBuilder();
-                                StringBuilder isbB = new StringBuilder();
 
                                 if (fileType.equals("time")) {
                                     // 全時刻と感染者数を出力
@@ -162,19 +153,6 @@ public class TwoNetSISApp {
                                     }
                                     iw.write(isb.toString());
                                     iw.newLine();
-
-                                    for (int k = 0; k < IA.length; k++) {
-                                        if (k > 0) isbA.append(',');
-                                        isbA.append(IA[k]);
-                                    }
-                                    iwA.write(isbA.toString());
-                                    iwA.newLine();
-                                    for (int k = 0; k < IB.length; k++) {
-                                        if (k > 0) isbB.append(',');
-                                        isbB.append(IB[k]);
-                                    }
-                                    iwB.write(isbB.toString());
-                                    iwB.newLine();
                                 } else {
                                     // 最終時刻と最終感染者数のみ出力
                                     tsb.append(T[T.length - 1]);
@@ -184,14 +162,6 @@ public class TwoNetSISApp {
                                     isb.append(I[I.length - 1]);
                                     iw.write(isb.toString());
                                     iw.newLine();
-
-                                    isbA.append(IA[IA.length - 1]);
-                                    iwA.write(isbA.toString());
-                                    iwA.newLine();
-
-                                    isbB.append(IB[IB.length - 1]);
-                                    iwB.write(isbB.toString());
-                                    iwB.newLine();
                                 }
 
                             }

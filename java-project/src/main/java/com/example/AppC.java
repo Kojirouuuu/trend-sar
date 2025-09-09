@@ -93,7 +93,7 @@ public class AppC {
                                     + (long) cIdx * 1_000_003L
                                     + (long) lIdx * 10_007L
                                     + (long) b * 1_000_000_007L;
-                            SIS.RunResult res = SIS.simulateOnce(net, lambda, gamma, rho0, tmax, c, runSeed);
+                            SIS.RunResult res = SIS.simulateOnce(net, lambda, gamma, rho0, tmax, c, runSeed, null);
                             double[] T = res.times();
                             int[] I = res.infectedSeries();
 

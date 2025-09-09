@@ -27,17 +27,17 @@ public class TriangleSIS {
         // === シミュレーションパラメータの設定 ===
         String networkType = "EdgeTriangle";
         int N = 1000;
-        int k_ave = 6;
+        // int k_ave = 6;
         double lambdaMin = 0.00;
         double lambdaMax = 0.30;
-        double dlambda = 0.005;
+        double dlambda = 0.01;
         double gamma = 1.0;
         double rho0 = 1.0; // 初期感染率
         double tmax = 400.0;
         
         // beta の候補リスト
         double[] betaList = new double[] {0.0, 0.5, 1.0};
-        double[] cList = new double[] {0.0, 0.05, 0.10, 0.15, 0.20};
+        int[] cList = new int[] {3, 5, 10};
         long seed = 0L;
 
         // itr 回繰り返し、各回のイベント列を1行CSVで書き出し
@@ -46,14 +46,13 @@ public class TriangleSIS {
 
         // === 出力ディレクトリの準備 ===
         String fileType = "final";
-        String path = String.format("output/sis/%s/z=%d/N=%d%s", networkType, k_ave, N, fileType);
+        String path = String.format("output/sis/%s/z=%d/N=%d%s", networkType, N, N, fileType);
         ensureParentDir(path);
 
         // === パラメータを辞書っぽくCSVに保存 ===
         Params params = new Params()
             .put("networkType", networkType)
             .put("N", N)
-            .put("k_ave", k_ave)
             .put("gamma", gamma)
             .put("rho0", rho0)
             .put("tmax", tmax)
@@ -73,7 +72,7 @@ public class TriangleSIS {
         String cListStr = "";
         for (int i = 0; i < cList.length; i++) {
             if (i > 0) cListStr += ":";
-            cListStr += String.format(Locale.US, "%.3f", cList[i]);
+            cListStr += String.format(Locale.US, "%d", cList[i]);
         }
         params.put("cList", cListStr);
 
@@ -111,17 +110,18 @@ public class TriangleSIS {
                  BufferedWriter iw = new BufferedWriter(new FileWriter(infectedFile, false))) {
                 
                 for (int c_idx = 0; c_idx < cList.length; c_idx++) {
-                    double c = cList[c_idx];
+                    int c = cList[c_idx];
                     int[] degree = new int[N];
-                    for (int i = 0; i < N; i++) degree[i] = k_ave;
-                    if (((long) N * k_ave) % 2L != 0L) {
+                    for (int i = 0; i < N; i++) degree[i] = c;
+                    if (((long) N * c) % 2L != 0L) {
                         throw new IllegalArgumentException("N*k must be even for a simple undirected graph");
                     }
 
-                    Network net = EdgeTriangle.generateFromDegreeAndTransitivity(N, degree, c, seed);
+                    Network net = Network.generateNetwork("RR", N, c);
                     double trans = net.transitivity();
                     double avgC = net.averageClusteringCoefficient();
-                    System.out.println(String.format("c: %.3f, trans: %.3f, avgC: %.3f", c, trans, avgC));
+                    System.out.println(String.format("c: %d, trans: %.3f, avgC: %.3f", c, trans, avgC));
+                    net.printGraphInfo();
                     
                     for (int betaIdx = 0; betaIdx < betaList.length; betaIdx++) {
                         double beta = betaList[betaIdx];
@@ -139,7 +139,7 @@ public class TriangleSIS {
                                     + (long) b * 1_000_000_007L;
                                 
                                 // SISシミュレーション実行
-                                SIS.RunResult res = SIS.simulateOnce(net, lambda, gamma, rho0, tmax, beta, runSeed);
+                                SIS.RunResult res = SIS.simulateOnce(net, lambda, gamma, rho0, tmax, beta, runSeed, null);
                                 double[] T = res.times();
                                 int[] I = res.infectedSeries();
 
