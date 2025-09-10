@@ -97,7 +97,7 @@ chmod 400 "$PEM_PATH"
 
 # ローカル引数・環境変数から S3 パラメータを決定
 DEFAULT_BUCKET="${BUCKET_NAME:-buturigakkai25}"
-DEFAULT_PREFIX="sis-simulation/$(date +%Y%m%d_%H%M%S)"
+DEFAULT_PREFIX="twonet-simulation/$(date +%Y%m%d_%H%M%S)"
 S3_BUCKET="${1:-$DEFAULT_BUCKET}"
 S3_PREFIX="${2:-$DEFAULT_PREFIX}"
 
@@ -113,10 +113,10 @@ git pull
 # 使用方法: 本スクリプトの引数で [S3_BUCKET_NAME] [S3_PREFIX] を受け取る
 
 S3_BUCKET="${1:-buturigakkai25}"
-S3_PREFIX="${2:-sis-simulation/$(date +%Y%m%d_%H%M%S)}"
+S3_PREFIX="${2:-twonet-simulation/$(date +%Y%m%d_%H%M%S)}"
 
 echo "=========================================="
-echo "SISシミュレーション実行 & S3アップロード"
+echo "TwoNetSISシミュレーション実行 & S3アップロード"
 echo "=========================================="
 echo "S3バケット: $S3_BUCKET"
 echo "S3プレフィックス: $S3_PREFIX"
@@ -132,8 +132,8 @@ echo "java-projectディレクトリに移動: $(pwd)"
 echo "  - Mavenクリーンとコンパイル..."
 mvn clean compile
 
-echo "  - シミュレーション実行..."
-mvn exec:java
+echo "  - TwoNetSISシミュレーション実行..."
+mvn exec:java -Dexec.mainClass="com.example.TwoNetSISApp"
 
 echo "  - 実行完了"
 cd ..
@@ -154,7 +154,7 @@ if [ ! -d "$OUTPUT_DIR" ]; then
     ls -la java-project/
     echo ""
     echo "App.javaが出力を試みたパスを確認してください"
-    echo "期待されるパス: java-project/output/sis/RR/z=6/N=10000/"
+    echo "期待されるパス: java-project/output/twonet/sis/RR/z=6/N=10000/"
     exit 1
 fi
 
