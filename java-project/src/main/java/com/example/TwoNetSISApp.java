@@ -26,23 +26,23 @@ public class TwoNetSISApp {
     public static void main(String[] args) {
         // === シミュレーションパラメータの設定 ===
         String networkType = "2RR"; // "ER", "BA", "RR" が利用可能
-        int N = 1000;
+        int N = 5000;
         int k_ave = 6;
         double lambdaMin = 0.02;
         double lambdaMax = 0.08;
-        double dlambda = 0.005;
+        double dlambda = 0.0005;
         double gamma = 1.0;
         double rho0 = 1.0 / 2.0; // 初期感染率
         double tmax = 400.0;
         
         // c の候補リスト
         double[] cList = new double[] {2.5, 5.0};
-        int[] edgeNumList = new int[] {0, 1, 2, 10};
+        int[] edgeNumList = new int[] {0, 1, 10, 20};
         long seed = 0L;
 
         // itr 回繰り返し、各回のイベント列を1行CSVで書き出し
         int itr = 10; // 必要に応じて変更
-        int batchNum = 16;
+        int batchNum = 100;
 
         // === 出力ディレクトリの準備 ===
         String fileType = "final";

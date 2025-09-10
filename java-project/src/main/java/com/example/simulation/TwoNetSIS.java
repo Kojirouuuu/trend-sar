@@ -205,8 +205,8 @@ public class TwoNetSIS {
         if (rho0 == 0.0) initI = 0;
         else if (initI == 0 && rho0 > 0.0) initI = 1;
 
-        int[] indices = new int[N];
-        for (int i = 0; i < N; i++) indices[i] = i;
+        int[] indices = new int[(int) (N / 2.0)];
+        for (int i = 0; i < N / 2; i++) indices[i] = i;
         int[] shuffled = com.example.utils.Array.shuffle(indices);
         for (int i = 0; i < initI; i++) state[shuffled[i]] = 1;
 
