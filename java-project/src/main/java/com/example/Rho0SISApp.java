@@ -27,15 +27,15 @@ public class Rho0SISApp {
         String networkType = "RR"; // "ER", "BA", "RR" が利用可能
         int N = 10000;
         int k_ave = 6;
-        double lambdaMin = 0.00;
-        double lambdaMax = 0.30;
-        double dlambda = 0.0025;
+        double lambdaMin = 0.06;
+        double lambdaMax = 0.08;
+        double dlambda = 0.00025;
         double gamma = 1.0;
-        double tmax = 400.0;
+        double tmax = 1000.0;
         
         // c の候補リスト
-        double[] cList = new double[] {0.2, 1.0};
-        double[] rho0List = new double[] {1.0, 10.0, 40.0, 100.0};
+        double[] cList = new double[] {2.0};
+        double[] rho0List = new double[] {0.01 * N, 0.05 * N, 0.1 * N};
         for (int i = 0; i < rho0List.length; i++) {
             rho0List[i] = rho0List[i] / N;
         }
@@ -43,12 +43,12 @@ public class Rho0SISApp {
 
         // itr 回繰り返し、各回のイベント列を1行CSVで書き出し
         int itr = 10; // 必要に応じて変更
-        int batchNum = 48;
+        int batchNum = 200;
 
         // === 出力ディレクトリの準備 ===
         String fileType = "final";
-        String iniType = "nonbfs";
-        String path = String.format("output/sis/%s/z=%d/N=%d%s%s", networkType, k_ave, N, fileType, iniType);
+        String iniType = "bfs";
+        String path = String.format("output/sis/%s/z=%d/N=%d%s%snewnewlamb", networkType, k_ave, N, fileType, iniType);
         ensureParentDir(path);
 
         // === パラメータを辞書っぽくCSVに保存 ===
@@ -219,6 +219,143 @@ public class Rho0SISApp {
             mw.write("total_memory_mb," + totalMemMB); 
             mw.newLine();
             mw.write("max_memory_mb," + maxMemMB); 
+            mw.newLine();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        String iniType2 = "nonbfs";
+        String path2 = String.format("output/sis/%s/z=%d/N=%d%s%snewnewlamb", networkType, k_ave, N, fileType, iniType2);
+        Writer.writeParametersToCSV(paramPath, params);
+
+        // === 全体メタデータのための開始時刻 ===
+        LocalDateTime globalStart2 = LocalDateTime.now();
+        long globalT02 = System.nanoTime();
+
+        System.out.println(String.format("[%s] Start simulation", 
+            globalStart2.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
+        System.out.println(String.format("Run: rho0 * c * lambda * itr = %d * %d * %d * %d = %d", 
+            rho0List.length, cList.length, lambdaList.length, itr, rho0List.length * cList.length * lambdaList.length * itr));
+
+        IntStream.range(0, batchNum).parallel().forEach(b -> {
+            String outDir = path2;
+            String timeFile = outDir + String.format("/times_%02d.txt", b);
+            String infectedFile = outDir + String.format("/infected_num_%02d.txt", b);
+
+            ensureParentDir(timeFile);
+            ensureParentDir(infectedFile);
+
+            try (BufferedWriter tw = new BufferedWriter(new FileWriter(timeFile, false));
+                 BufferedWriter iw = new BufferedWriter(new FileWriter(infectedFile, false))) {
+                
+                for (int rho0Idx = 0; rho0Idx < rho0List.length; rho0Idx++) {
+                    double rho0 = rho0List[rho0Idx];
+                    Network net = Network.generateNetwork(networkType, N, k_ave);
+                    
+                    for (int cIdx = 0; cIdx < cList.length; cIdx++) {
+                        double c = cList[cIdx];
+                        
+                        for (int lIdx = 0; lIdx < lambdaList.length; lIdx++) {
+                            double lambda = lambdaList[lIdx];
+                            
+                            for (int it2 = 0; it2 < itr; it2++) {
+                                // シード値の計算
+                                long runSeed = seed
+                                    + it2
+                                    + (long) cIdx * 1_000_003L
+                                    + (long) lIdx * 10_007L
+                                    + (long) b * 1_000_000_007L;
+                                
+                                // SISシミュレーション実行
+                                SIS.RunResult res = SIS.simulateOnce(net, lambda, gamma, rho0, tmax, c, runSeed, iniType);
+                                double[] T = res.times();
+                                int[] I = res.infectedSeries();
+
+                                // 時刻列と感染者数列の出力
+                                StringBuilder tsb = new StringBuilder();
+                                StringBuilder isb = new StringBuilder();
+
+                                if (fileType.equals("time")) {
+                                    // 全時刻と感染者数を出力
+                                    for (int k = 0; k < T.length; k++) {
+                                        if (k > 0) tsb.append(',');
+                                        tsb.append(T[k]);
+                                    }
+                                    tw.write(tsb.toString());
+                                    tw.newLine();
+
+                                    for (int k = 0; k < I.length; k++) {
+                                        if (k > 0) isb.append(',');
+                                        isb.append(I[k]);
+                                    }
+                                    iw.write(isb.toString());
+                                    iw.newLine();
+                                } else {
+                                    // 最終時刻と最終感染者数のみ出力
+                                    tsb.append(T[T.length - 1]);
+                                    tw.write(tsb.toString());
+                                    tw.newLine();
+
+                                    isb.append(I[I.length - 1]);
+                                    iw.write(isb.toString());
+                                    iw.newLine();
+                                }
+
+                            }
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            System.out.println(String.format("[%s] Completed batch %02d", 
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), b));
+        });
+
+        // === 総合メタデータを書き出す（全処理完了後） ===
+        LocalDateTime globalEnd2 = LocalDateTime.now();
+        long elapsedNs2 = System.nanoTime() - globalT02;
+        int lambdaCount2 = lambdaList.length;
+        int runsPerBatch2 = lambdaCount * cList.length * itr;
+        long totalRuns2 = (long) runsPerBatch2 * batchNum;
+        long cpuCores2 = Runtime.getRuntime().availableProcessors();
+        long totalMemMB2 = Runtime.getRuntime().totalMemory() / (1024 * 1024);
+        long maxMemMB2 = Runtime.getRuntime().maxMemory() / (1024 * 1024);
+
+        String metaPath2 = String.format("%s/metadata.csv", path2);
+        ensureParentDir(metaPath2);
+        
+        try (BufferedWriter mw = new BufferedWriter(new FileWriter(metaPath2, false))) {
+            mw.write("key,value"); 
+            mw.newLine();
+            mw.write("start_time," + globalStart.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))); 
+            mw.newLine();
+            mw.write("end_time," + globalEnd2.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))); 
+            mw.newLine();
+            mw.write("duration_seconds," + String.format(Locale.US, "%.3f", elapsedNs2 / 1e9)); 
+            mw.newLine();
+            mw.write("network_type," + networkType); 
+            mw.newLine();
+            mw.write("runs_per_batch," + runsPerBatch2); 
+            mw.newLine();
+            mw.write("total_runs," + totalRuns2); 
+            mw.newLine();
+            mw.write("seed_base," + seed); 
+            mw.newLine();
+            mw.write("os_name," + System.getProperty("os.name")); 
+            mw.newLine();
+            mw.write("os_version," + System.getProperty("os.version")); 
+            mw.newLine();
+            mw.write("java_version," + System.getProperty("java.version")); 
+            mw.newLine();
+            mw.write("java_vendor," + System.getProperty("java.vendor")); 
+            mw.newLine();
+            mw.write("cpu_cores," + cpuCores2); 
+            mw.newLine();
+            mw.write("total_memory_mb," + totalMemMB2); 
+            mw.newLine();
+            mw.write("max_memory_mb," + maxMemMB2); 
             mw.newLine();
         } catch (IOException e) {
             e.printStackTrace();

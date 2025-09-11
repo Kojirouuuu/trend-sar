@@ -4,7 +4,6 @@ import com.example.network.Network;
 import com.example.utils.Tips;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Random;
 
@@ -191,7 +190,7 @@ public class SIS {
         if ("bfs".equals(initialInfectedType)) {
             // Use BFS-based initial infection selection
             initialInfectedNodes = Tips.bfsInitialInfect(network, initI);
-            System.out.println("BFS-based initial infection selection: " + Arrays.toString(initialInfectedNodes));
+            // System.out.println("BFS-based initial infection selection: " + Arrays.toString(initialInfectedNodes));
         } else {
             // Default: random selection
             int[] indices;

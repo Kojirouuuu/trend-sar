@@ -1,14 +1,12 @@
 package com.example;
 
 import com.example.network.Network;
-import com.example.network.topology.TwoRR;
 
 public class NetworkTest {
     public static void main(String[] args) {
         int N = 1000;
         int k_ave = 10;
-        int edgeNum = 0;
-        Network net = TwoRR.generate2RR(N, k_ave, N, k_ave, edgeNum);
+        Network net = Network.generateNetwork("FB", N, k_ave);
 
         System.out.println("ネットワーク情報");
         net.printGraphInfo();

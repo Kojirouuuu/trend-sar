@@ -41,7 +41,7 @@ public class Tips {
         initialInfectedNodes.add(s);
         q.add(s);
 
-        while (!q.isEmpty()) {
+        while (!q.isEmpty() && initialInfectedNodes.size() < initialInfectedNum) {
             int v = q.poll();
             for (int to : network.getNeighbors(v)) {
                 if (initialInfectedNodes.contains(to)) continue;
@@ -54,11 +54,14 @@ public class Tips {
             }
         }
 
-        int[] initialInfectedNodesArray = new int[initialInfectedNum];
+        int[] initialInfectedNodesArray = new int[initialInfectedNodes.size()];
         int i = 0;
         for (int node : initialInfectedNodes) {
             initialInfectedNodesArray[i] = node;
             i++;
+        }
+        if (initialInfectedNum != initialInfectedNodes.size()) {
+            System.out.println("initialInfectedNum != initialInfectedNodes.size()");
         }
         return initialInfectedNodesArray;
     }
