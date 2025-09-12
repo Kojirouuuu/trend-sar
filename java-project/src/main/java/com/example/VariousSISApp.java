@@ -1,7 +1,6 @@
 package com.example;
 
 import com.example.network.Network;
-import com.example.network.topology.TwoRR;
 import com.example.simulation.SIS;
 import com.example.utils.Params;
 import com.example.utils.Array;
@@ -21,41 +20,39 @@ import java.time.format.DateTimeFormatter;
  * 2つのRRネットワークを結合したネットワークでのSISシミュレーション
  * 連続時間での感染ダイナミクスを解析する
  */
-public class TwoNetApp {
+public class VariousSISApp {
     
     public static void main(String[] args) {
         // === シミュレーションパラメータの設定 ===
-        String networkType = "2RR"; // "ER", "BA", "RR" が利用可能
-        int N = 1000;
+        String[] networkTypeList = new String[] {"RR", "ER", "BA"}; // "ER", "BA", "RR" が利用可能
+        int N = 10000;
         int k_ave = 6;
-        double lambdaMin = 0.02;
-        double lambdaMax = 0.08;
-        double dlambda = 0.0005;
+        double lambdaMin = 0.00;
+        double lambdaMax = 0.30;
+        double dlambda = 0.0025;
         double gamma = 1.0;
-        double rho0 = 1.0 / 2.0; // 初期感染率
         double tmax = 400.0;
+        double rho0 = 1.0;
         
         // c の候補リスト
-        double[] cList = new double[] {2.5, 5.0};
-        int[] edgeNumList = new int[] {0, 1, 2, 10};
+        double[] cList = new double[] {0.0, 0.2, 1.0};
         long seed = 0L;
 
         // itr 回繰り返し、各回のイベント列を1行CSVで書き出し
-        int itr = 10; // 必要に応じて変更
-        int batchNum = 32;
+        int itr = 5; // 必要に応じて変更
+        int batchNum = 60;
 
         // === 出力ディレクトリの準備 ===
         String fileType = "final";
-        String path = String.format("output/sis/%s/z=%d/N=%d%scmore", networkType, k_ave, N, fileType);
+        String iniType = "nonbfs";
+        String path = String.format("output/sis/various/z=%d/rho0=%f/N=%d%s%s", k_ave, rho0, N, fileType, iniType);
         ensureParentDir(path);
 
         // === パラメータを辞書っぽくCSVに保存 ===
         Params params = new Params()
-            .put("networkType", networkType)
             .put("N", N)
             .put("k_ave", k_ave)
             .put("gamma", gamma)
-            .put("rho0", rho0)
             .put("tmax", tmax)
             .put("seed", seed)
             .put("itr", itr)
@@ -70,15 +67,15 @@ public class TwoNetApp {
         params.put("cList", cListStr);
 
         // edgeNumListを文字列に変換
-        String edgeNumListStr = "";
-        for (int i = 0; i < edgeNumList.length; i++) {
-            if (i > 0) edgeNumListStr += ":";
-            edgeNumListStr += String.format(Locale.US, "%d", edgeNumList[i]);
+        String networkTypeStr = "";
+        for (int i = 0; i < networkTypeList.length; i++) {
+            if (i > 0) networkTypeStr += ":";
+            networkTypeStr += String.format(Locale.US, "%s", networkTypeList[i]);
         }
-        params.put("edgeNumList", edgeNumListStr);
+        params.put("networkType", networkTypeStr);
 
         // === lambda値のリストを生成 ===
-        double[] lambdaList = Array.arange(lambdaMin, lambdaMax, dlambda);
+        double[] lambdaList = Array.arange(lambdaMin, lambdaMax + dlambda, dlambda);
         String lambdaListStr = "";
         for (int i = 0; i < lambdaList.length; i++) {
             if (i > 0) lambdaListStr += ":";
@@ -95,8 +92,8 @@ public class TwoNetApp {
 
         System.out.println(String.format("[%s] Start simulation", 
             globalStart.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
-        System.out.println(String.format("Run: Edge * c * lambda * itr = %d * %d * %d * %d = %d", 
-            edgeNumList.length, cList.length, lambdaList.length, itr, edgeNumList.length * cList.length * lambdaList.length * itr));
+        System.out.println(String.format("Run: rho0 * c * lambda * itr = %d * %d * %d * %d = %d", 
+            networkTypeList.length, cList.length, lambdaList.length, itr, networkTypeList.length * cList.length * lambdaList.length * itr));
 
         // === 並列シミュレーション実行 ===
         IntStream.range(0, batchNum).parallel().forEach(b -> {
@@ -110,9 +107,9 @@ public class TwoNetApp {
             try (BufferedWriter tw = new BufferedWriter(new FileWriter(timeFile, false));
                  BufferedWriter iw = new BufferedWriter(new FileWriter(infectedFile, false))) {
                 
-                for (int edgeNumIdx = 0; edgeNumIdx < edgeNumList.length; edgeNumIdx++) {
-                    int edgeNum = edgeNumList[edgeNumIdx];
-                    Network net = TwoRR.generate2RR(N, k_ave, N, k_ave, edgeNum, seed);
+                for (int networkTypeIdx = 0; networkTypeIdx < networkTypeList.length; networkTypeIdx++) {
+                    String networkType = networkTypeList[networkTypeIdx];
+                    Network net = Network.generateNetwork(networkType, N, k_ave);
                     
                     for (int cIdx = 0; cIdx < cList.length; cIdx++) {
                         double c = cList[cIdx];
@@ -129,7 +126,7 @@ public class TwoNetApp {
                                     + (long) b * 1_000_000_007L;
                                 
                                 // SISシミュレーション実行
-                                SIS.RunResult res = SIS.simulateOnce(net, lambda, gamma, rho0, tmax, c, runSeed, null);
+                                SIS.RunResult res = SIS.simulateOnce(net, lambda, gamma, rho0, tmax, c, runSeed, iniType);
                                 double[] T = res.times();
                                 int[] I = res.infectedSeries();
 
@@ -157,6 +154,7 @@ public class TwoNetApp {
                                     tsb.append(T[T.length - 1]);
                                     tw.write(tsb.toString());
                                     tw.newLine();
+
                                     isb.append(I[I.length - 1]);
                                     iw.write(isb.toString());
                                     iw.newLine();
@@ -196,7 +194,7 @@ public class TwoNetApp {
             mw.newLine();
             mw.write("duration_seconds," + String.format(Locale.US, "%.3f", elapsedNs / 1e9)); 
             mw.newLine();
-            mw.write("network_type," + networkType); 
+            mw.write("network_type," + networkTypeList); 
             mw.newLine();
             mw.write("runs_per_batch," + runsPerBatch); 
             mw.newLine();

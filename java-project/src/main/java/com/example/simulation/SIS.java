@@ -1,6 +1,7 @@
 package com.example.simulation;
 
 import com.example.network.Network;
+import com.example.utils.Tips;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -90,6 +91,7 @@ public class SIS {
      * Single continuous-time SIS simulation returning event times and I counts.
      * - Infection rate for each active I->S edge: lambda
      * - Recovery rate for infected node u: gamma / (1 + c * k_inf[u])
+     * - initialInfectedType: null or "bfs" for BFS-based initial infection selection
      */
     public static RunResult simulateOnce(
             Network network,
@@ -98,7 +100,8 @@ public class SIS {
             double rho0,
             double tmax,
             double c,
-            long seed
+            long seed,
+            String initialInfectedType
     ) {
         final int N = network.N;
 
@@ -183,17 +186,32 @@ public class SIS {
         if (rho0 == 0.0) initI = 0;
         else if (initI == 0 && rho0 > 0.0) initI = 1;
 
-        int[] indices;
-        if (network.networkType.equals("TwoRR")) {
-            indices = new int[(int) (N / 2.0)];
-            for (int i = 0; i < N / 2; i++) indices[i] = i;
+        int[] initialInfectedNodes;
+        if ("bfs".equals(initialInfectedType)) {
+            // Use BFS-based initial infection selection
+            initialInfectedNodes = Tips.bfsInitialInfect(network, initI);
+            // System.out.println("BFS-based initial infection selection: " + Arrays.toString(initialInfectedNodes));
         } else {
-            indices = new int[N];
-            for (int i = 0; i < N; i++) indices[i] = i;
+            // Default: random selection
+            int[] indices;
+            if (network.networkType.equals("TwoRR")) {
+                indices = new int[(int) (N / 2.0)];
+                for (int i = 0; i < N / 2; i++) indices[i] = i;
+            } else {
+                indices = new int[N];
+                for (int i = 0; i < N; i++) indices[i] = i;
+            }
+            int[] shuffled = com.example.utils.Array.shuffle(indices);
+            initialInfectedNodes = new int[initI];
+            for (int i = 0; i < initI; i++) {
+                initialInfectedNodes[i] = shuffled[i];
+            }
         }
 
-        int[] shuffled = com.example.utils.Array.shuffle(indices);
-        for (int i = 0; i < initI; i++) state[shuffled[i]] = 1;
+        // Set initial infected nodes
+        for (int i = 0; i < initI; i++) {
+            state[initialInfectedNodes[i]] = 1;
+        }
 
         // Initialize kInf
         for (int u = 0; u < N; u++) if (state[u] == 1) {

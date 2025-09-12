@@ -1,7 +1,6 @@
 package com.example;
 
 import com.example.network.Network;
-import com.example.network.topology.TwoRR;
 import com.example.simulation.SIS;
 import com.example.utils.Params;
 import com.example.utils.Array;
@@ -21,32 +20,32 @@ import java.time.format.DateTimeFormatter;
  * 2つのRRネットワークを結合したネットワークでのSISシミュレーション
  * 連続時間での感染ダイナミクスを解析する
  */
-public class TwoNetApp {
+public class Rho0SISApp {
     
     public static void main(String[] args) {
         // === シミュレーションパラメータの設定 ===
-        String networkType = "2RR"; // "ER", "BA", "RR" が利用可能
-        int N = 1000;
+        String networkType = "RR"; // "ER", "BA", "RR" が利用可能
+        int N = 10000;
         int k_ave = 6;
-        double lambdaMin = 0.02;
-        double lambdaMax = 0.08;
-        double dlambda = 0.0005;
+        double lambdaMin = 0.00;
+        double lambdaMax = 0.30;
+        double dlambda = 0.05;
         double gamma = 1.0;
-        double rho0 = 1.0 / 2.0; // 初期感染率
-        double tmax = 400.0;
+        double tmax = 100.0;
         
         // c の候補リスト
-        double[] cList = new double[] {2.5, 5.0};
-        int[] edgeNumList = new int[] {0, 1, 2, 10};
+        double[] cList = new double[] {0.0, 0.1, 1.0, 2.0};
+        double[] rho0List = new double[] {0.001, 0.1, 1.0};
         long seed = 0L;
 
         // itr 回繰り返し、各回のイベント列を1行CSVで書き出し
-        int itr = 10; // 必要に応じて変更
-        int batchNum = 32;
+        int itr = 1; // 必要に応じて変更
+        int batchNum = 10;
 
         // === 出力ディレクトリの準備 ===
         String fileType = "final";
-        String path = String.format("output/sis/%s/z=%d/N=%d%scmore", networkType, k_ave, N, fileType);
+        String iniType = "nonbfs";
+        String path = String.format("output/sis/%s/z=%d/N=%d%s%s", networkType, k_ave, N, fileType, iniType);
         ensureParentDir(path);
 
         // === パラメータを辞書っぽくCSVに保存 ===
@@ -55,7 +54,6 @@ public class TwoNetApp {
             .put("N", N)
             .put("k_ave", k_ave)
             .put("gamma", gamma)
-            .put("rho0", rho0)
             .put("tmax", tmax)
             .put("seed", seed)
             .put("itr", itr)
@@ -70,15 +68,15 @@ public class TwoNetApp {
         params.put("cList", cListStr);
 
         // edgeNumListを文字列に変換
-        String edgeNumListStr = "";
-        for (int i = 0; i < edgeNumList.length; i++) {
-            if (i > 0) edgeNumListStr += ":";
-            edgeNumListStr += String.format(Locale.US, "%d", edgeNumList[i]);
+        String rho0ListStr = "";
+        for (int i = 0; i < rho0List.length; i++) {
+            if (i > 0) rho0ListStr += ":";
+            rho0ListStr += String.format(Locale.US, "%.8f", rho0List[i]);
         }
-        params.put("edgeNumList", edgeNumListStr);
+        params.put("rho0List", rho0ListStr);
 
         // === lambda値のリストを生成 ===
-        double[] lambdaList = Array.arange(lambdaMin, lambdaMax, dlambda);
+        double[] lambdaList = Array.arange(lambdaMin, lambdaMax + dlambda, dlambda);
         String lambdaListStr = "";
         for (int i = 0; i < lambdaList.length; i++) {
             if (i > 0) lambdaListStr += ":";
@@ -95,8 +93,8 @@ public class TwoNetApp {
 
         System.out.println(String.format("[%s] Start simulation", 
             globalStart.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
-        System.out.println(String.format("Run: Edge * c * lambda * itr = %d * %d * %d * %d = %d", 
-            edgeNumList.length, cList.length, lambdaList.length, itr, edgeNumList.length * cList.length * lambdaList.length * itr));
+        System.out.println(String.format("Run: rho0 * c * lambda * itr = %d * %d * %d * %d = %d", 
+            rho0List.length, cList.length, lambdaList.length, itr, rho0List.length * cList.length * lambdaList.length * itr));
 
         // === 並列シミュレーション実行 ===
         IntStream.range(0, batchNum).parallel().forEach(b -> {
@@ -110,9 +108,9 @@ public class TwoNetApp {
             try (BufferedWriter tw = new BufferedWriter(new FileWriter(timeFile, false));
                  BufferedWriter iw = new BufferedWriter(new FileWriter(infectedFile, false))) {
                 
-                for (int edgeNumIdx = 0; edgeNumIdx < edgeNumList.length; edgeNumIdx++) {
-                    int edgeNum = edgeNumList[edgeNumIdx];
-                    Network net = TwoRR.generate2RR(N, k_ave, N, k_ave, edgeNum, seed);
+                for (int rho0Idx = 0; rho0Idx < rho0List.length; rho0Idx++) {
+                    double rho0 = rho0List[rho0Idx];
+                    Network net = Network.generateNetwork(networkType, N, k_ave);
                     
                     for (int cIdx = 0; cIdx < cList.length; cIdx++) {
                         double c = cList[cIdx];
@@ -129,7 +127,7 @@ public class TwoNetApp {
                                     + (long) b * 1_000_000_007L;
                                 
                                 // SISシミュレーション実行
-                                SIS.RunResult res = SIS.simulateOnce(net, lambda, gamma, rho0, tmax, c, runSeed, null);
+                                SIS.RunResult res = SIS.simulateOnce(net, lambda, gamma, rho0, tmax, c, runSeed, iniType);
                                 double[] T = res.times();
                                 int[] I = res.infectedSeries();
 
@@ -157,6 +155,7 @@ public class TwoNetApp {
                                     tsb.append(T[T.length - 1]);
                                     tw.write(tsb.toString());
                                     tw.newLine();
+
                                     isb.append(I[I.length - 1]);
                                     iw.write(isb.toString());
                                     iw.newLine();

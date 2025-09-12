@@ -3,6 +3,7 @@ package com.example.network;
 import com.example.network.topology.BA;
 import com.example.network.topology.ER;
 import com.example.network.topology.RR;
+import com.example.network.topology.FB;
 
 
 /**
@@ -23,6 +24,8 @@ public class Network {
             return BA.generateBA(N, k_ave/2, k_ave/2);
         } else if (networkType.equals("RR")) {
             return RR.generateRR(N, k_ave);
+        } else if (networkType.equals("FB")) {
+            return FB.loadDefault();
         } else {
             throw new IllegalArgumentException("無効なネットワークタイプ: " + networkType);
         }
