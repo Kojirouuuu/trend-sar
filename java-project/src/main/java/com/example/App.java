@@ -31,7 +31,7 @@ public class App {
         double lambdaMax = 0.30;
         double dlambda = 0.0025;
         double gamma = 1.0;
-        double tmax = 100.0;
+        double tmax = 1000.0;
         
         // c の候補リスト
         double[] cList = new double[] {0.0, 0.1, 1.0, 2.0};
@@ -39,8 +39,8 @@ public class App {
         long seed = 0L;
 
         // itr 回繰り返し、各回のイベント列を1行CSVで書き出し
-        int itr = 15; // 必要に応じて変更
-        int batchNum = 32;
+        int itr = 10; // 必要に応じて変更
+        int batchNum = 64;
 
         // === 出力ディレクトリの準備 ===
         String fileType = "final";
