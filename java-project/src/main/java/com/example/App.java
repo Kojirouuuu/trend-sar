@@ -29,7 +29,7 @@ public class App {
         int k_ave = 6;
         double lambdaMin = 0.00;
         double lambdaMax = 0.30;
-        double dlambda = 0.05;
+        double dlambda = 0.005;
         double gamma = 1.0;
         double tmax = 200.0;
         
