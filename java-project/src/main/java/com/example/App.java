@@ -76,7 +76,7 @@ public class App {
         params.put("rho0List", rho0ListStr);
 
         // === lambda値のリストを生成 ===
-        double[] lambdaList = Array.arange(lambdaMin, lambdaMax + dlambda, dlambda);
+        double[] lambdaList = Array.arange(lambdaMin, lambdaMax, dlambda);
         String lambdaListStr = "";
         for (int i = 0; i < lambdaList.length; i++) {
             if (i > 0) lambdaListStr += ":";
