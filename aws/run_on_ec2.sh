@@ -108,7 +108,7 @@ set -euo pipefail
 cd ~/trend-sar
 pwd
 git fetch
-git pull --force
+git reset --hard origin/develop
 
 # App.javaを実行してS3にアップロードするスクリプト
 # 使用方法: 本スクリプトの引数で [S3_BUCKET_NAME] [S3_PREFIX] を受け取る
