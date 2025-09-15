@@ -24,28 +24,28 @@ public class App {
     
     public static void main(String[] args) {
         // === シミュレーションパラメータの設定 ===
-        String networkType = "RR"; // "ER", "BA", "RR" が利用可能
+        String networkType = "BA"; // "ER", "BA", "RR" が利用可能
         int N = 10000;
         int k_ave = 6;
         double lambdaMin = 0.00;
-        double lambdaMax = 0.003;
-        double dlambda = 0.0025;
+        double lambdaMax = 0.015;
+        double dlambda = 0.00025;
         double gamma = 1.0;
-        double tmax = 1000.0;
+        double tmax = 2000.0;
         
         // c の候補リスト
-        double[] cList = new double[] {1.0, 2.0};
+        double[] cList = new double[] {2.0};
         double[] rho0List = new double[] {0.001, 0.1, 1.0};
         long seed = 0L;
 
         // itr 回繰り返し、各回のイベント列を1行CSVで書き出し
-        int itr = 1; // 必要に応じて変更
-        int batchNum = 1;
+        int itr = 10; // 必要に応じて変更
+        int batchNum = 500;
 
         // === 出力ディレクトリの準備 ===
         String fileType = "final";
         String iniType = "nonbfs";
-        String path = String.format("output/sis/%s/z=%d/N=%d%s%s", networkType, k_ave, N, fileType, iniType);
+        String path = String.format("output/sis/%s/z=%d/N=%d%s%ssupersample", networkType, k_ave, N, fileType, iniType);
         ensureParentDir(path);
 
         // === パラメータを辞書っぽくCSVに保存 ===
