@@ -35,20 +35,17 @@ public class Rho0SISApp {
         
         // c の候補リスト
         double[] cList = new double[] {2.0};
-        double[] rho0List = new double[] {0.01 * N, 0.05 * N, 0.1 * N};
-        for (int i = 0; i < rho0List.length; i++) {
-            rho0List[i] = rho0List[i] / N;
-        }
+        double[] rho0List = new double[] {0.01, 0.05, 0.1};
         long seed = 0L;
 
         // itr 回繰り返し、各回のイベント列を1行CSVで書き出し
-        int itr = 10; // 必要に応じて変更
-        int batchNum = 200;
+        int itr = 100; // 必要に応じて変更
+        int batchNum = 10;
 
         // === 出力ディレクトリの準備 ===
         String fileType = "final";
         String iniType = "bfs";
-        String path = String.format("output/sis/%s/z=%d/N=%d%s%snewnewlamb", networkType, k_ave, N, fileType, iniType);
+        String path = String.format("output/sis/%s/z=%d/N=%d%s%s916", networkType, k_ave, N, fileType, iniType);
         ensureParentDir(path);
 
         // === パラメータを辞書っぽくCSVに保存 ===
@@ -100,133 +97,135 @@ public class Rho0SISApp {
             rho0List.length, cList.length, lambdaList.length, itr, rho0List.length * cList.length * lambdaList.length * itr));
 
         // === 並列シミュレーション実行 ===
-        IntStream.range(0, batchNum).parallel().forEach(b -> {
-            String outDir = path;
-            String timeFile = outDir + String.format("/times_%02d.txt", b);
-            String infectedFile = outDir + String.format("/infected_num_%02d.txt", b);
+        // IntStream.range(0, batchNum).parallel().forEach(b -> {
+        //     String outDir = path;
+        //     String timeFile = outDir + String.format("/times_%02d.txt", b);
+        //     String infectedFile = outDir + String.format("/infected_num_%02d.txt", b);
 
-            ensureParentDir(timeFile);
-            ensureParentDir(infectedFile);
+        //     ensureParentDir(timeFile);
+        //     ensureParentDir(infectedFile);
 
-            try (BufferedWriter tw = new BufferedWriter(new FileWriter(timeFile, false));
-                 BufferedWriter iw = new BufferedWriter(new FileWriter(infectedFile, false))) {
+        //     try (BufferedWriter tw = new BufferedWriter(new FileWriter(timeFile, false));
+        //          BufferedWriter iw = new BufferedWriter(new FileWriter(infectedFile, false))) {
                 
-                for (int rho0Idx = 0; rho0Idx < rho0List.length; rho0Idx++) {
-                    double rho0 = rho0List[rho0Idx];
-                    Network net = Network.generateNetwork(networkType, N, k_ave);
+        //         for (int rho0Idx = 0; rho0Idx < rho0List.length; rho0Idx++) {
+        //             double rho0 = rho0List[rho0Idx];
+        //             Network net = Network.generateNetwork(networkType, N, k_ave);
                     
-                    for (int cIdx = 0; cIdx < cList.length; cIdx++) {
-                        double c = cList[cIdx];
+        //             for (int cIdx = 0; cIdx < cList.length; cIdx++) {
+        //                 double c = cList[cIdx];
                         
-                        for (int lIdx = 0; lIdx < lambdaList.length; lIdx++) {
-                            double lambda = lambdaList[lIdx];
+        //                 for (int lIdx = 0; lIdx < lambdaList.length; lIdx++) {
+        //                     double lambda = lambdaList[lIdx];
                             
-                            for (int it2 = 0; it2 < itr; it2++) {
-                                // シード値の計算
-                                long runSeed = seed
-                                    + it2
-                                    + (long) cIdx * 1_000_003L
-                                    + (long) lIdx * 10_007L
-                                    + (long) b * 1_000_000_007L;
+        //                     for (int it2 = 0; it2 < itr; it2++) {
+        //                         // シード値の計算
+        //                         long runSeed = seed
+        //                             + it2
+        //                             + (long) cIdx * 1_000_003L
+        //                             + (long) lIdx * 10_007L
+        //                             + (long) b * 1_000_000_007L;
                                 
-                                // SISシミュレーション実行
-                                SIS.RunResult res = SIS.simulateOnce(net, lambda, gamma, rho0, tmax, c, runSeed, iniType);
-                                double[] T = res.times();
-                                int[] I = res.infectedSeries();
+        //                         // SISシミュレーション実行
+        //                         SIS.RunResult res = SIS.simulateOnce(net, lambda, gamma, rho0, tmax, c, runSeed, iniType);
+        //                         double[] T = res.times();
+        //                         int[] I = res.infectedSeries();
 
-                                // 時刻列と感染者数列の出力
-                                StringBuilder tsb = new StringBuilder();
-                                StringBuilder isb = new StringBuilder();
+        //                         // 時刻列と感染者数列の出力
+        //                         StringBuilder tsb = new StringBuilder();
+        //                         StringBuilder isb = new StringBuilder();
 
-                                if (fileType.equals("time")) {
-                                    // 全時刻と感染者数を出力
-                                    for (int k = 0; k < T.length; k++) {
-                                        if (k > 0) tsb.append(',');
-                                        tsb.append(T[k]);
-                                    }
-                                    tw.write(tsb.toString());
-                                    tw.newLine();
+        //                         if (fileType.equals("time")) {
+        //                             // 全時刻と感染者数を出力
+        //                             for (int k = 0; k < T.length; k++) {
+        //                                 if (k > 0) tsb.append(',');
+        //                                 tsb.append(T[k]);
+        //                             }
+        //                             tw.write(tsb.toString());
+        //                             tw.newLine();
 
-                                    for (int k = 0; k < I.length; k++) {
-                                        if (k > 0) isb.append(',');
-                                        isb.append(I[k]);
-                                    }
-                                    iw.write(isb.toString());
-                                    iw.newLine();
-                                } else {
-                                    // 最終時刻と最終感染者数のみ出力
-                                    tsb.append(T[T.length - 1]);
-                                    tw.write(tsb.toString());
-                                    tw.newLine();
+        //                             for (int k = 0; k < I.length; k++) {
+        //                                 if (k > 0) isb.append(',');
+        //                                 isb.append(I[k]);
+        //                             }
+        //                             iw.write(isb.toString());
+        //                             iw.newLine();
+        //                         } else {
+        //                             // 最終時刻と最終感染者数のみ出力
+        //                             tsb.append(T[T.length - 1]);
+        //                             tw.write(tsb.toString());
+        //                             tw.newLine();
 
-                                    isb.append(I[I.length - 1]);
-                                    iw.write(isb.toString());
-                                    iw.newLine();
-                                }
+        //                             isb.append(I[I.length - 1]);
+        //                             iw.write(isb.toString());
+        //                             iw.newLine();
+        //                         }
 
-                            }
-                        }
-                    }
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     } catch (IOException e) {
+        //         e.printStackTrace();
+        //     }
 
-            System.out.println(String.format("[%s] Completed batch %02d", 
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), b));
-        });
+        //     System.out.println(String.format("[%s] Completed batch %02d", 
+        //         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), b));
+        // });
 
-        // === 総合メタデータを書き出す（全処理完了後） ===
-        LocalDateTime globalEnd = LocalDateTime.now();
-        long elapsedNs = System.nanoTime() - globalT0;
-        int lambdaCount = lambdaList.length;
-        int runsPerBatch = lambdaCount * cList.length * itr;
-        long totalRuns = (long) runsPerBatch * batchNum;
-        long cpuCores = Runtime.getRuntime().availableProcessors();
-        long totalMemMB = Runtime.getRuntime().totalMemory() / (1024 * 1024);
-        long maxMemMB = Runtime.getRuntime().maxMemory() / (1024 * 1024);
+        // // === 総合メタデータを書き出す（全処理完了後） ===
+        // LocalDateTime globalEnd = LocalDateTime.now();
+        // long elapsedNs = System.nanoTime() - globalT0;
+        // int lambdaCount = lambdaList.length;
+        // int runsPerBatch = lambdaCount * cList.length * itr;
+        // long totalRuns = (long) runsPerBatch * batchNum;
+        // long cpuCores = Runtime.getRuntime().availableProcessors();
+        // long totalMemMB = Runtime.getRuntime().totalMemory() / (1024 * 1024);
+        // long maxMemMB = Runtime.getRuntime().maxMemory() / (1024 * 1024);
 
-        String metaPath = String.format("%s/metadata.csv", path);
-        ensureParentDir(metaPath);
+        // String metaPath = String.format("%s/metadata.csv", path);
+        // ensureParentDir(metaPath);
         
-        try (BufferedWriter mw = new BufferedWriter(new FileWriter(metaPath, false))) {
-            mw.write("key,value"); 
-            mw.newLine();
-            mw.write("start_time," + globalStart.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))); 
-            mw.newLine();
-            mw.write("end_time," + globalEnd.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))); 
-            mw.newLine();
-            mw.write("duration_seconds," + String.format(Locale.US, "%.3f", elapsedNs / 1e9)); 
-            mw.newLine();
-            mw.write("network_type," + networkType); 
-            mw.newLine();
-            mw.write("runs_per_batch," + runsPerBatch); 
-            mw.newLine();
-            mw.write("total_runs," + totalRuns); 
-            mw.newLine();
-            mw.write("seed_base," + seed); 
-            mw.newLine();
-            mw.write("os_name," + System.getProperty("os.name")); 
-            mw.newLine();
-            mw.write("os_version," + System.getProperty("os.version")); 
-            mw.newLine();
-            mw.write("java_version," + System.getProperty("java.version")); 
-            mw.newLine();
-            mw.write("java_vendor," + System.getProperty("java.vendor")); 
-            mw.newLine();
-            mw.write("cpu_cores," + cpuCores); 
-            mw.newLine();
-            mw.write("total_memory_mb," + totalMemMB); 
-            mw.newLine();
-            mw.write("max_memory_mb," + maxMemMB); 
-            mw.newLine();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        // try (BufferedWriter mw = new BufferedWriter(new FileWriter(metaPath, false))) {
+        //     mw.write("key,value"); 
+        //     mw.newLine();
+        //     mw.write("start_time," + globalStart.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))); 
+        //     mw.newLine();
+        //     mw.write("end_time," + globalEnd.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))); 
+        //     mw.newLine();
+        //     mw.write("duration_seconds," + String.format(Locale.US, "%.3f", elapsedNs / 1e9)); 
+        //     mw.newLine();
+        //     mw.write("network_type," + networkType); 
+        //     mw.newLine();
+        //     mw.write("runs_per_batch," + runsPerBatch); 
+        //     mw.newLine();
+        //     mw.write("total_runs," + totalRuns); 
+        //     mw.newLine();
+        //     mw.write("seed_base," + seed); 
+        //     mw.newLine();
+        //     mw.write("os_name," + System.getProperty("os.name")); 
+        //     mw.newLine();
+        //     mw.write("os_version," + System.getProperty("os.version")); 
+        //     mw.newLine();
+        //     mw.write("java_version," + System.getProperty("java.version")); 
+        //     mw.newLine();
+        //     mw.write("java_vendor," + System.getProperty("java.vendor")); 
+        //     mw.newLine();
+        //     mw.write("cpu_cores," + cpuCores); 
+        //     mw.newLine();
+        //     mw.write("total_memory_mb," + totalMemMB); 
+        //     mw.newLine();
+        //     mw.write("max_memory_mb," + maxMemMB); 
+        //     mw.newLine();
+        // } catch (IOException e) {
+        //     e.printStackTrace();
+        // }
 
         String iniType2 = "nonbfs";
-        String path2 = String.format("output/sis/%s/z=%d/N=%d%s%snewnewlamb", networkType, k_ave, N, fileType, iniType2);
-        Writer.writeParametersToCSV(paramPath, params);
+        String path2 = String.format("output/sis/%s/z=%d/N=%d%s%s916", networkType, k_ave, N, fileType, iniType2);
+        ensureParentDir(path2);
+        String paramPath2 = String.format("%s/params.csv", path2);
+        Writer.writeParametersToCSV(paramPath2, params);
 
         // === 全体メタデータのための開始時刻 ===
         LocalDateTime globalStart2 = LocalDateTime.now();
@@ -267,7 +266,7 @@ public class Rho0SISApp {
                                     + (long) b * 1_000_000_007L;
                                 
                                 // SISシミュレーション実行
-                                SIS.RunResult res = SIS.simulateOnce(net, lambda, gamma, rho0, tmax, c, runSeed, iniType);
+                                SIS.RunResult res = SIS.simulateOnce(net, lambda, gamma, rho0, tmax, c, runSeed, iniType2);
                                 double[] T = res.times();
                                 int[] I = res.infectedSeries();
 
@@ -317,7 +316,7 @@ public class Rho0SISApp {
         LocalDateTime globalEnd2 = LocalDateTime.now();
         long elapsedNs2 = System.nanoTime() - globalT02;
         int lambdaCount2 = lambdaList.length;
-        int runsPerBatch2 = lambdaCount * cList.length * itr;
+        int runsPerBatch2 = lambdaCount2 * cList.length * itr;
         long totalRuns2 = (long) runsPerBatch2 * batchNum;
         long cpuCores2 = Runtime.getRuntime().availableProcessors();
         long totalMemMB2 = Runtime.getRuntime().totalMemory() / (1024 * 1024);

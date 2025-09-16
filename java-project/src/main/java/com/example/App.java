@@ -3,6 +3,7 @@ package com.example;
 import com.example.network.Network;
 import com.example.simulation.SIS;
 import com.example.network.topology.WS;
+import com.example.network.topology.S1;
 import com.example.utils.Params;
 import com.example.utils.Array;
 import com.example.utils.Writer;
@@ -25,18 +26,18 @@ public class App {
     
     public static void main(String[] args) {
         // === シミュレーションパラメータの設定 ===
-        String networkType = "WS"; // "ER", "BA", "RR" が利用可能
+        String networkType = "S1"; // "ER", "BA", "RR" が利用可能
         int N = 10000;
         int k_ave = 6;
         double lambdaMin = 0.00;
-        double lambdaMax = 0.10;
-        double dlambda = 0.001;
+        double lambdaMax = 0.50;
+        double dlambda = 0.01;
         double gamma = 1.0;
         double tmax = 1000.0;
         double rho0 = 1.0;
         
         // c の候補リスト
-        double[] cList = new double[] {0.0, 2.0};
+        double[] cList = new double[] {0.0, 0.1, 1.0, 2.0};
         long seed = 0L;
 
         // itr 回繰り返し、各回のイベント列を1行CSVで書き出し
@@ -46,7 +47,7 @@ public class App {
         // === 出力ディレクトリの準備 ===
         String fileType = "final";
         String iniType = "nonbfs";
-        String path = String.format("output/sis/%s/z=%d/N=%d%s", networkType, k_ave, N, fileType);
+        String path = String.format("output/sis/%s/z=%d/N=%d%sintro", networkType, k_ave, N, fileType);
         ensureParentDir(path);
 
         // === パラメータを辞書っぽくCSVに保存 ===
@@ -59,7 +60,8 @@ public class App {
             .put("rho0", rho0)
             .put("seed", seed)
             .put("itr", itr)
-            .put("batchNum", batchNum);
+            .put("batchNum", batchNum)
+            .put("fileType", fileType);
         
         // cListを文字列に変換
         String cListStr = "";
@@ -69,17 +71,17 @@ public class App {
         }
         params.put("cList", cListStr);
 
-        // edgeNumListを文字列に変換
-        double[] pList = {0.001, 0.01, 0.1, 0.2, 1.0};
-        String pListStr = "";
-        for (int i = 0; i < pList.length; i++) {
-            if (i > 0) pListStr += ":";
-            pListStr += String.format(Locale.US, "%.8f", pList[i]);
+        double[] rewireProb = {0.0, 1.0};
+        String rewireProbStr = "";
+        for (int i = 0; i < rewireProb.length; i++) {
+            if (i > 0) rewireProbStr += ":";
+            rewireProbStr += String.format(Locale.US, "%.3f", rewireProb[i]);
         }
-        params.put("pList", pListStr);
+        params.put("rewireProb", rewireProbStr);
 
         // === lambda値のリストを生成 ===
-        double[] lambdaList = Array.arange(lambdaMin, lambdaMax + dlambda, dlambda);
+        // double[] lambdaList = Array.arange(lambdaMin, lambdaMax, dlambda);
+        double[] lambdaList = Array.arange(lambdaMin, lambdaMax, dlambda);
         String lambdaListStr = "";
         for (int i = 0; i < lambdaList.length; i++) {
             if (i > 0) lambdaListStr += ":";
@@ -96,8 +98,8 @@ public class App {
 
         System.out.println(String.format("[%s] Start simulation", 
             globalStart.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
-        System.out.println(String.format("Run: p * c * lambda * itr = %d * %d * %d * %d = %d", 
-            pList.length, cList.length, lambdaList.length, itr, pList.length * cList.length * lambdaList.length * itr));
+        System.out.println(String.format("Run: c * lambda * itr = %d * %d * %d = %d", 
+            cList.length, lambdaList.length, itr, cList.length * lambdaList.length * itr));
 
         // === 並列シミュレーション実行 ===
         IntStream.range(0, batchNum).parallel().forEach(b -> {
@@ -111,10 +113,12 @@ public class App {
             try (BufferedWriter tw = new BufferedWriter(new FileWriter(timeFile, false));
                  BufferedWriter iw = new BufferedWriter(new FileWriter(infectedFile, false))) {
                 
-                for (int pIdx = 0; pIdx < pList.length; pIdx++) {
-                    double p = pList[pIdx];
-                    Network net = WS.generateWS(N, p, k_ave);
-                    
+                     
+                for (int pIdx = 0; pIdx < rewireProb.length; pIdx++) {
+                    double p = rewireProb[pIdx];
+                    Network net = S1.loadFromCsv("networks/s1.csv");
+                    net.rewirePreservingDegree(p);
+
                     for (int cIdx = 0; cIdx < cList.length; cIdx++) {
                         double c = cList[cIdx];
                         
@@ -125,6 +129,7 @@ public class App {
                                 // シード値の計算
                                 long runSeed = seed
                                     + it2
+                                    + (long) pIdx * 1_000_003L
                                     + (long) cIdx * 1_000_003L
                                     + (long) lIdx * 10_007L
                                     + (long) b * 1_000_000_007L;

@@ -5,6 +5,19 @@ import com.example.network.topology.ER;
 import com.example.network.topology.RR;
 import com.example.network.topology.FB;
 
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.Random;
+
+import com.example.utils.Tips;
 
 /**
  * グラフ構造を表現するクラス
@@ -37,28 +50,27 @@ public class Network {
      */
     public void printGraphInfo() {
         System.out.println("--------------------------------");
-        System.out.println("ノード数: " + N);   
-        
+        System.out.println("ノード数: " + N);
+
         if (N > 0 && cursorList != null) {
-            int totalEdges = 0;
-            int degreeI = 0;
+            long sumDegrees = 0L;
             int maxDegree = 0;
             int minDegree = Integer.MAX_VALUE;
-            
+
             for (int i = 0; i < N; i++) {
-                degreeI = 0; // Reset degreeI for the current node
-                for (int j = 0; j < cursorList[i] - addressList[i]; j++) {
-                    totalEdges += 1;
-                    degreeI += 1;
-                }
-                maxDegree = Math.max(maxDegree, degreeI);
-                minDegree = Math.min(minDegree, degreeI);
+                int d = degree(i);
+                sumDegrees += d;
+                if (d > maxDegree) maxDegree = d;
+                if (d < minDegree) minDegree = d;
             }
-            
-            System.out.println("総エッジ数: " + ((int)totalEdges / 2));
+
+            long undirectedEdges = sumDegrees / 2L;
+            double avgDeg = (N > 0) ? (double) sumDegrees / (double) N : 0.0;
+
+            System.out.println("総エッジ数: " + undirectedEdges);
             System.out.println("最大次数: " + maxDegree);
             System.out.println("最小次数: " + minDegree);
-            System.out.println("平均次数: " + (double)totalEdges / N);
+            System.out.println("平均次数: " + avgDeg);
             System.out.println("");
         }
     }
@@ -188,4 +200,307 @@ public class Network {
     private transient int[] _mark;
     private transient int _markClock = 1;
 
+    /**
+     * Gephi 用のエッジ CSV を書き出す。
+     * フォーマットは "Source,Target" のヘッダー付き。
+     * 無向グラフの重複エッジは除外（{min(u,v), max(u,v)} を一意キーとして扱う）。
+     *
+     * 例: exportToGephiEdgesCSV("java-project/output/graph_edges.csv");
+     * @param edgesCsvPath 出力する CSV ファイルパス
+     */
+    public void exportToGephiEdgesCSV(String edgesCsvPath) {
+        Path out = Paths.get(edgesCsvPath);
+        ensureParentDir(out);
+
+        // 重複排除用セット（無向辺[u,v]の一意キー）
+        // キーの作り方: (min << 32) | max
+        Set<Long> seen = new HashSet<>();
+
+        try (BufferedWriter w = Files.newBufferedWriter(out, StandardCharsets.UTF_8)) {
+            w.write("Source,Target");
+            w.newLine();
+
+            for (int u = 0; u < N; u++) {
+                for (int i = addressList[u]; i < cursorList[u]; i++) {
+                    int v = edgeList[i];
+                    if (v == u) continue; // 自己ループは除外
+                    int a = Math.min(u, v);
+                    int b = Math.max(u, v);
+                    long key = (((long) a) << 32) | (b & 0xffffffffL);
+                    if (seen.add(key)) {
+                        w.write(Integer.toString(a));
+                        w.write(',');
+                        w.write(Integer.toString(b));
+                        w.newLine();
+                    }
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to write Gephi edges CSV: " + edgesCsvPath, e);
+        }
+    }
+
+    /**
+     * Gephi 用のノード CSV を書き出す。
+     * フォーマットは "Id,Label,Degree" のヘッダー付き。
+     * ラベルは Id と同じ値を書き出す。
+     *
+     * 例: exportToGephiNodesCSV("java-project/output/graph_nodes.csv");
+     * @param nodesCsvPath 出力する CSV ファイルパス
+     */
+    public void exportToGephiNodesCSV(String nodesCsvPath) {
+        Path out = Paths.get(nodesCsvPath);
+        ensureParentDir(out);
+        try (BufferedWriter w = Files.newBufferedWriter(out, StandardCharsets.UTF_8)) {
+            w.write("Id,Label,Degree");
+            w.newLine();
+            for (int u = 0; u < N; u++) {
+                w.write(Integer.toString(u));
+                w.write(',');
+                w.write(Integer.toString(u)); // Label として Id を使用
+                w.write(',');
+                w.write(Integer.toString(degree(u)));
+                w.newLine();
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to write Gephi nodes CSV: " + nodesCsvPath, e);
+        }
+    }
+
+    /** 親ディレクトリが無ければ作成 */
+    private static void ensureParentDir(Path p) {
+        Path parent = p.getParent();
+        if (parent != null) {
+            try {
+                Files.createDirectories(parent);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to create directory: " + parent, e);
+            }
+        }
+    }
+
+    /* ===================== Gephi ノード色分け出力 ===================== */
+
+    /**
+     * 局所的（BFS で広がる）初期感染者のみ色を変えてノード CSV を出力。
+     * CSV ヘッダー: "Id,Label,Degree,r,g,b"
+     * - 初期感染集合: 赤 (255,0,0)
+     * - それ以外: グレー (200,200,200)
+     * @param nodesCsvPath 出力 CSV パス
+     * @param initialInfectedNum 初期感染者数
+     */
+    public void exportGephiNodesWithLocalizedColors(String nodesCsvPath, int initialInfectedNum) {
+        int[] seeds = Tips.bfsInitialInfect(this, initialInfectedNum);
+        boolean[] isSeed = new boolean[N];
+        for (int v : seeds) {
+            if (0 <= v && v < N) isSeed[v] = true;
+        }
+
+        Path out = Paths.get(nodesCsvPath);
+        ensureParentDir(out);
+        try (BufferedWriter w = Files.newBufferedWriter(out, StandardCharsets.UTF_8)) {
+            w.write("Id,Label,Degree,r,g,b");
+            w.newLine();
+            for (int u = 0; u < N; u++) {
+                w.write(Integer.toString(u));
+                w.write(',');
+                w.write(Integer.toString(u));
+                w.write(',');
+                w.write(Integer.toString(degree(u)));
+                w.write(',');
+                if (isSeed[u]) {
+                    w.write("255,0,0"); // 赤
+                } else {
+                    w.write("200,200,200"); // グレー
+                }
+                w.newLine();
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to write Gephi nodes CSV: " + nodesCsvPath, e);
+        }
+    }
+
+    /**
+     * ランダムに rho0 割合の頂点を選び、色を変えてノード CSV を出力。
+     * CSV ヘッダー: "Id,Label,Degree,r,g,b"
+     * - 選択集合: 青 (0,120,255)
+     * - それ以外: グレー (200,200,200)
+     * @param nodesCsvPath 出力 CSV パス
+     * @param rho0 選択割合 (0.0～1.0)
+     */
+    public void exportGephiNodesWithRandomColors(String nodesCsvPath, double rho0) {
+        exportGephiNodesWithRandomColors(nodesCsvPath, rho0, System.nanoTime());
+    }
+
+    /** シード指定版 */
+    public void exportGephiNodesWithRandomColors(String nodesCsvPath, double rho0, long seed) {
+        if (rho0 < 0.0 || rho0 > 1.0) {
+            throw new IllegalArgumentException("rho0 must be in [0,1]: " + rho0);
+        }
+        int pick = (int) Math.round(rho0 * N);
+        if (pick < 0) pick = 0;
+        if (pick > N) pick = N;
+
+        boolean[] chosen = new boolean[N];
+        Random rnd = new Random(seed);
+        // フィッシャー–イェーツ（部分選択）
+        int[] idx = new int[N];
+        for (int i = 0; i < N; i++) idx[i] = i;
+        for (int i = 0; i < pick; i++) {
+            int j = i + rnd.nextInt(N - i);
+            int tmp = idx[i]; idx[i] = idx[j]; idx[j] = tmp;
+            chosen[idx[i]] = true;
+        }
+
+        Path out = Paths.get(nodesCsvPath);
+        ensureParentDir(out);
+        try (BufferedWriter w = Files.newBufferedWriter(out, StandardCharsets.UTF_8)) {
+            w.write("Id,Label,Degree,r,g,b");
+            w.newLine();
+            for (int u = 0; u < N; u++) {
+                w.write(Integer.toString(u));
+                w.write(',');
+                w.write(Integer.toString(u));
+                w.write(',');
+                w.write(Integer.toString(degree(u)));
+                w.write(',');
+                if (chosen[u]) {
+                    w.write("0,120,255"); // 青
+                } else {
+                    w.write("200,200,200"); // グレー
+                }
+                w.newLine();
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to write Gephi nodes CSV: " + nodesCsvPath, e);
+        }
+    }
+
+    /**
+     * 次数分布を保ったまま、無向エッジの一部をランダムにリワイヤリング（ダブルエッジスワップ）する。
+     * - 2本の無向エッジ (a,b), (c,d) を選び、(a,d), (c,b) あるいは (a,c), (b,d) に置き換える。
+     * - 自己ループや多重辺は作らないようにチェック。
+     * - 各ノードの次数は不変。
+     *
+     * 目標は「全無向エッジ数 M のうち割合 p を置換」なので、
+     * 1回のスワップで 2 辺が置換されることを踏まえて、試行回数は round(p*M/2) 回を目安にする。
+     *
+     * @param p 置換するエッジ割合 [0,1]
+     * @return 実際に置換できたスワップ回数（置換エッジ数は 2×戻り値）
+     */
+    public int rewirePreservingDegree(double p) {
+        return rewirePreservingDegree(p, System.nanoTime());
+    }
+
+    /** シード指定版 */
+    public int rewirePreservingDegree(double p, long seed) {
+        if (p <= 0.0) return 0;
+        if (p > 1.0) p = 1.0;
+
+        // 無向エッジ集合（重複除去）を構築
+        List<int[]> edges = new ArrayList<>();
+        Set<Long> edgeSet = new HashSet<>();
+        for (int u = 0; u < N; u++) {
+            for (int i = addressList[u]; i < cursorList[u]; i++) {
+                int v = edgeList[i];
+                if (v == u) continue; // 自己ループ回避
+                int a = Math.min(u, v);
+                int b = Math.max(u, v);
+                long key = edgeKey(a, b);
+                if (edgeSet.add(key)) {
+                    edges.add(new int[]{a, b});
+                }
+            }
+        }
+
+        final int M = edges.size();
+        if (M < 2) return 0;
+        int targetSwaps = (int) Math.round((p * M) / 2.0);
+        if (targetSwaps <= 0) return 0;
+
+        Random rnd = new Random(seed);
+        int success = 0;
+        int attempts = 0;
+        int maxAttempts = Math.max(10 * targetSwaps, 50); // 失敗を見越して適度にリトライ
+
+        while (success < targetSwaps && attempts < maxAttempts) {
+            attempts++;
+            int i1 = rnd.nextInt(M);
+            int i2 = rnd.nextInt(M - 1);
+            if (i2 >= i1) i2++;
+
+            int a = edges.get(i1)[0];
+            int b = edges.get(i1)[1];
+            int c = edges.get(i2)[0];
+            int d = edges.get(i2)[1];
+
+            // 4頂点が全て異なる必要がある
+            if (a == c || a == d || b == c || b == d) continue;
+
+            boolean pattern = rnd.nextBoolean();
+            int x1, y1, x2, y2; // 置換後の 2 辺
+            if (pattern) {
+                // (a,b), (c,d) -> (a,d), (c,b)
+                x1 = a; y1 = d; x2 = c; y2 = b;
+            } else {
+                // (a,b), (c,d) -> (a,c), (b,d)
+                x1 = a; y1 = c; x2 = b; y2 = d;
+            }
+
+            // 自己ループ回避
+            if (x1 == y1 || x2 == y2) continue;
+
+            int m1 = Math.min(x1, y1), M1 = Math.max(x1, y1);
+            int m2 = Math.min(x2, y2), M2 = Math.max(x2, y2);
+            long k1 = edgeKey(m1, M1);
+            long k2 = edgeKey(m2, M2);
+
+            // 既存辺（元の2辺を除く）との重複回避
+            boolean existed1 = edgeSet.contains(k1);
+            boolean existed2 = edgeSet.contains(k2);
+            // k1, k2 が元の (a,b), (c,d) と一致する場合は除外（置換にならない）
+            if (existed1 && !(m1 == a && M1 == b) && !(m1 == c && M1 == d)) continue;
+            if (existed2 && !(m2 == a && M2 == b) && !(m2 == c && M2 == d)) continue;
+
+            // 実際の隣接リストを書き換え（無向なので双方を置換）。
+            // 先に古い2辺の除去→新2辺の追加 ではなく、配列位置を置換する形で実装。
+            boolean ok = true;
+            ok &= replaceNeighbor(a, b, pattern ? d : c);
+            ok &= replaceNeighbor(b, a, pattern ? c : d);
+            ok &= replaceNeighbor(c, d, pattern ? b : a);
+            ok &= replaceNeighbor(d, c, pattern ? a : b);
+            if (!ok) {
+                // 一貫性が崩れている場合はロールバック不能なのでスキップ（極力発生しない前提）
+                continue;
+            }
+
+            // エッジ集合・エッジ配列を更新
+            edgeSet.remove(edgeKey(a, b));
+            edgeSet.remove(edgeKey(c, d));
+            edgeSet.add(k1);
+            edgeSet.add(k2);
+            edges.set(i1, new int[]{m1, M1});
+            edges.set(i2, new int[]{m2, M2});
+
+            success++;
+        }
+
+        return success;
+    }
+
+    /** undirected edge のキー化: (min<<32) | max */
+    private static long edgeKey(int a, int b) {
+        return (((long) a) << 32) | (b & 0xffffffffL);
+    }
+
+    /** 隣接配列で u の隣接 oldN を newN に置き換える（1 箇所のみ）。*/
+    private boolean replaceNeighbor(int u, int oldN, int newN) {
+        for (int i = addressList[u]; i < cursorList[u]; i++) {
+            if (edgeList[i] == oldN) {
+                edgeList[i] = newN;
+                return true;
+            }
+        }
+        return false;
+    }
 }

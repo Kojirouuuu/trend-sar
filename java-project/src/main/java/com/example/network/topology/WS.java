@@ -68,6 +68,7 @@ public class WS {
                         }
                         if (newV == -1) {
                             // うまく見つからない場合は線形探索で候補を探す
+                            System.out.println("線形探索");
                             for (int cand = 0; cand < N; cand++) {
                                 if (cand == i) continue;
                                 if (!nbr[i].contains(cand)) { newV = cand; break; }
@@ -76,6 +77,7 @@ public class WS {
 
                         // 候補が全く無ければ（k = N-1 等）元に戻す
                         if (newV == -1) {
+                            System.out.println("候補なし");
                             nbr[i].add(v);
                             nbr[v].add(i);
                         } else {
