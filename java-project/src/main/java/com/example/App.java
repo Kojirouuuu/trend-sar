@@ -28,8 +28,8 @@ public class App {
         int N = 10000;
         int k_ave = 6;
         double lambdaMin = 0.00;
-        double lambdaMax = 0.015;
-        double dlambda = 0.00025;
+        double lambdaMax = 0.06;
+        double dlambda = 0.001;
         double gamma = 1.0;
         double tmax = 2000.0;
         
@@ -40,12 +40,12 @@ public class App {
 
         // itr 回繰り返し、各回のイベント列を1行CSVで書き出し
         int itr = 10; // 必要に応じて変更
-        int batchNum = 500;
+        int batchNum = 100;
 
         // === 出力ディレクトリの準備 ===
         String fileType = "final";
         String iniType = "nonbfs";
-        String path = String.format("output/sis/%s/z=%d/N=%d%s%ssupersample", networkType, k_ave, N, fileType, iniType);
+        String path = String.format("output/sis/%s/z=%d/N=%d%s%s916", networkType, k_ave, N, fileType, iniType);
         ensureParentDir(path);
 
         // === パラメータを辞書っぽくCSVに保存 ===

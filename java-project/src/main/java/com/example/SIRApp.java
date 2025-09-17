@@ -20,21 +20,21 @@ public class SIRApp {
         // 単発の連続時間 SIS シミュレーションを実行し、イベント時刻と感染者数を表示
         String networkType = "RR"; // "ER", "BA", "RR" が利用可能
         int N = 10000;
-        int k_ave = 12;
+        int k_ave = 6;
         double lambdaMin = 0.00;
-        double lambdaMax = 0.30;
+        double lambdaMax = 0.50;
         double dlambda   = 0.01;
         double gamma = 1.0;
         double rho0 = 1.0 / N; // 初期感染率
-        double tmax = 100.0;
+        double tmax = 200.0;
         // c の候補リスト
-        double[] cList = new double[] {0.00, 0.05, 0.20, 0.40};
-        double[] dList = new double[] {0.00, 0.05, 0.40, 0.80};
+        double[] cList = new double[] {0.00, 0.40, 2.00};
+        double[] dList = new double[] {0.00, 0.80, 4.00};
         long seed = 0L;
 
         // itr 回繰り返し、各回のイベント列を1行CSVで書き出し
-        int itr = 10; // 必要に応じて変更
-        int batchNum = 48;
+        int itr = 30; // 必要に応じて変更
+        int batchNum = 16;
 
         String path = String.format("output/sir/%s/z=%d/N=%d", networkType, k_ave, N);
         ensureParentDir(path);
