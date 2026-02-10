@@ -69,3 +69,16 @@ ame/
 AGENTS.md
 .env
 downloaded/
+
+*.o
+*.out
+a.out
+*.exe
+*.dSYM/
+build/
+
+c-lang/regular-sis
+c-lang/regular-regular-sis
+
+# Jupyter
+.ipynb_checkpoints/

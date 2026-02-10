@@ -185,6 +185,9 @@ public class SIS {
 
         if (rho0 == 0.0) initI = 0;
         else if (initI == 0 && rho0 > 0.0) initI = 1;
+        if(network.networkType.equals("TwoRR")) {
+            initI /= 2;
+        }
 
         int[] initialInfectedNodes;
         if ("bfs".equals(initialInfectedType)) {
