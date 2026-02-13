@@ -23,23 +23,24 @@ public class App {
 
     public static void main(String[] args) {
         // === シミュレーションパラメータの設定 ===
-        String networkType = "BA"; // "ER", "BA", "RR" が利用可能
-        int N = 10000;
+        String networkType = "ER"; // "ER", "BA", "RR" が利用可能
+        int N = 20000;
         int k_ave = 6;
         double lambdaMin = 0.00;
-        double lambdaMax = 0.015;
-        double dlambda = 0.00025;
+        double lambdaMax = 0.24;
+        double dlambda = 0.0024;
         double[] lambdaList = Array.arange(lambdaMin, lambdaMax, dlambda);
 
-        double cMin = 0.00;
-        double cMax = 0.0;
+        double cMin = 2.0;
+        double cMax = 2.0;
         double dc = 0.01;
         double[] cList = Array.arange(cMin, cMax, dc);
 
         double rho0Min = 0.0;
         double rho0Max = 1.0;
-        double drho0 = 0.01;
-        double[] rho0List = Array.arange(rho0Min, rho0Max, drho0);
+        double drho0 = 0.1;
+        // double[] rho0List = Array.arange(rho0Min, rho0Max, drho0);
+        double[] rho0List = new double[] {0.001, 0.1, 1.0};
 
         double mu = 1.0;
         double tmax = 2000.0;
@@ -48,12 +49,12 @@ public class App {
 
         // itr 回繰り返し、各回のイベント列を1行CSVで書き出し
         int itr = 20; // 必要に応じて変更
-        int batchNum = 32;
+        int batchNum = 10;
 
         // === 出力ディレクトリの準備 ===
         String fileType = "final";
         String iniType = "nonbfs";
-        String path = String.format("output/sis/%s/z=%d/N=%d%s%ssupersample", networkType, k_ave, N, fileType, iniType);
+        String path = String.format("output/sis/%s/z=%d/N=%dcMin=%.2f%s%s", networkType, k_ave, N, cMin, fileType, iniType);
         ensureParentDir(path);
 
         long totalTasks = (long) batchNum * rho0List.length * cList.length * lambdaList.length * itr;
@@ -88,7 +89,7 @@ public class App {
                     for (int cIdx = 0; cIdx < cList.length; cIdx++) {
                         double c = cList[cIdx];
 
-                        for (int lIdx = 0; lIdx < lambdaList.length; lIdx++) {
+                        for (int lIdx = lambdaList.length - 1; lIdx >= 0; lIdx--) {
                             double lambda = lambdaList[lIdx];
 
                             for (int it2 = 0; it2 < itr; it2++) {

@@ -19,54 +19,65 @@ public class BA {
 
         Random random = new Random(seed);
 
-        int[] deg = new int[N];
-        int[] edgeList = new int[(int)(m0 * (m0 - 1) + 2 * m * (N - m0))];
+        // 総エッジ数（undirected）
+        long totalEdgesLong = (long) m0 * (m0 - 1) / 2 + (long) (N - m0) * m;
+        if (totalEdgesLong > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("エッジ数が大きすぎます: " + totalEdgesLong);
+        }
+        int totalEdges = (int) totalEdgesLong;
 
-        // 初期完全グラフのエッジを設定
-        int numEdges = 0;
+        // stubList は 2*総エッジ数（両端点）
+        int[] stubList = new int[2 * totalEdges];
+        int[] s = new int[totalEdges];
+        int[] d = new int[totalEdges];
+
+        int e = 0;       // 現在のエッジ本数
+        int stubLen = 0; // 現在のスタブ数 (=2*e)
+
+        // 初期完全グラフ
         for (int i = 0; i < m0; i++) {
             for (int j = i + 1; j < m0; j++) {
-                edgeList[2 * numEdges] = i;
-                edgeList[2 * numEdges + 1] = j;
-                deg[i]++;
-                deg[j]++;
-                numEdges++;
+                s[e] = i;
+                d[e] = j;
+                stubList[stubLen++] = i;
+                stubList[stubLen++] = j;
+                e++;
             }
         }
 
-        // 新規ノードの追加
+        // 新規ノード追加
         for (int i = m0; i < N; i++) {
-            // 既存のノードのリストを作成（重複を許可）
-            List<Integer> existingNodes = new ArrayList<>();
-            for (int j = 0; j < i; j++) {
-                for (int k = 0; k < deg[j]; k++) {
-                    existingNodes.add(j);
+            if (m == 0) continue;
+
+            if (stubLen == 0) {
+                throw new IllegalStateException("優先的選択のためのスタブが存在しません（初期辺が0本です）");
+            }
+
+            Set<Integer> connected = new HashSet<>(Math.max(16, m * 2));
+            while (connected.size() < m) {
+                int target = stubList[random.nextInt(stubLen)]; // 有効範囲のみ
+                if (target != i) { // 念のため（通常 i は stubList にいない）
+                    connected.add(target);
                 }
             }
-            
-            // m個のエッジを接続
-            for (int j = 0; j < m; j++) {
-                if (existingNodes.isEmpty()) {
-                    break;
-                }
-                
-                // 優先度付き選択（次数に比例）
-                int r = random.nextInt(existingNodes.size());
-                int target = existingNodes.get(r);
-                
-                // エッジを追加
-                edgeList[2 * numEdges] = i;
-                edgeList[2 * numEdges + 1] = target;
-                deg[i]++;
-                deg[target]++;
-                numEdges++;
-                
-                // 選択されたノードをリストから削除（重複接続を避けるため）
-                existingNodes.remove(r);
+
+            for (int target : connected) {
+                s[e] = i;
+                d[e] = target;
+                stubList[stubLen++] = i;
+                stubList[stubLen++] = target;
+                e++;
             }
         }
 
-        int[] edgeListFinal = new int[2 * numEdges];
+        // Network オブジェクトの構築
+        int[] deg = new int[N];
+        for (int i = 0; i < e; i++) {
+            deg[s[i]]++;
+            deg[d[i]]++;
+        }
+
+        int[] edgeListFinal = new int[2 * e];
         int[] addressList = new int[N];
         int[] cursorList = new int[N];
 
@@ -78,9 +89,9 @@ public class BA {
             pos += deg[i];
         }
 
-        for (int curEdges = 0; curEdges < numEdges; curEdges++) {
-            int start = edgeList[2 * curEdges];
-            int end = edgeList[2 * curEdges + 1];
+        for (int curEdges = 0; curEdges < e; curEdges++) {
+            int start = s[curEdges];
+            int end = d[curEdges];
 
             // 無効なエッジチェック
             if (start < 0 || end < 0 || start >= N || end >= N) {
