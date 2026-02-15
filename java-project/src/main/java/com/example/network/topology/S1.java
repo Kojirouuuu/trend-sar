@@ -12,17 +12,20 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Edge-list loader for the Facebook combined network.
- * Builds a Network (CSR-like) from a whitespace-separated edge list file.
+ * network-data/S1.csv/edges.csv からネットワークを読み込み、
+ * Network インスタンスとして返す。
+ * エッジ形式: CSV "source,target"（1行目は # source, target などのヘッダ）。
  */
-public final class FB {
+public final class S1 {
 
-    private FB() {}
+    private S1() {}
+
+    /** デフォルトパス: network-data/S1.csv/edges.csv（プロジェクトルート基準） */
+    private static final String DEFAULT_EDGES_PATH = "network-data/S1.csv/edges.csv";
 
     /**
-     * Load network from a given edge-list file.
-     * Lines should contain two integer node IDs separated by whitespace.
-     * Self-loops are ignored; duplicate edges are included once per input line.
+     * 指定した edges.csv パスから Network を構築する。
+     * 行形式: source,target （# 始まりはスキップ）。自ループは無視。
      */
     public static Network loadFromFile(String filePath) {
         Path path = Paths.get(filePath);
@@ -31,7 +34,6 @@ public final class FB {
         }
 
         try {
-            // First pass: determine N (max node id + 1), edge count M, and degrees per node.
             int maxId = -1;
             long m = 0L;
             Map<Integer, Integer> degMap = new HashMap<>();
@@ -41,11 +43,11 @@ public final class FB {
                 while ((line = br.readLine()) != null) {
                     line = line.trim();
                     if (line.isEmpty() || line.startsWith("#")) continue;
-                    int sp = findSplit(line);
-                    if (sp <= 0 || sp >= line.length() - 1) continue; // skip malformed
-                    int u = parseInt(line, 0, sp);
-                    int v = parseInt(line, sp + 1, line.length());
-                    if (u == v) continue; // ignore self-loop
+                    int comma = line.indexOf(',');
+                    if (comma <= 0 || comma >= line.length() - 1) continue;
+                    int u = parseInt(line.substring(0, comma).trim());
+                    int v = parseInt(line.substring(comma + 1).trim());
+                    if (u == v) continue;
                     if (u < 0 || v < 0) throw new RuntimeException("Negative node id in line: " + line);
                     maxId = Math.max(maxId, Math.max(u, v));
                     m++;
@@ -60,11 +62,9 @@ public final class FB {
             int[] deg = new int[N];
             for (Map.Entry<Integer, Integer> e : degMap.entrySet()) {
                 int id = e.getKey();
-                int d = e.getValue();
-                if (id >= 0 && id < N) deg[id] = d;
+                if (id >= 0 && id < N) deg[id] = e.getValue();
             }
 
-            // Build CSR-like arrays
             int[] addressList = new int[N];
             int[] cursorList = new int[N];
             int totalAdj = 0;
@@ -75,18 +75,17 @@ public final class FB {
             }
             int[] edgeList = new int[totalAdj];
 
-            // Second pass: fill adjacency lists
             try (BufferedReader br = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
                 String line;
                 while ((line = br.readLine()) != null) {
                     line = line.trim();
                     if (line.isEmpty() || line.startsWith("#")) continue;
-                    int sp = findSplit(line);
-                    if (sp <= 0 || sp >= line.length() - 1) continue;
-                    int u = parseInt(line, 0, sp);
-                    int v = parseInt(line, sp + 1, line.length());
-                    if (u == v) continue; // ignore self-loop
-                    if (u < 0 || v < 0 || u >= N || v >= N) continue; // skip malformed
+                    int comma = line.indexOf(',');
+                    if (comma <= 0 || comma >= line.length() - 1) continue;
+                    int u = parseInt(line.substring(0, comma).trim());
+                    int v = parseInt(line.substring(comma + 1).trim());
+                    if (u == v) continue;
+                    if (u < 0 || v < 0 || u >= N || v >= N) continue;
 
                     edgeList[cursorList[u]] = v; cursorList[u]++;
                     edgeList[cursorList[v]] = u; cursorList[v]++;
@@ -95,7 +94,7 @@ public final class FB {
 
             Network g = new Network();
             g.N = N;
-            g.networkType = "FB";
+            g.networkType = "S1";
             g.edgeList = edgeList;
             g.addressList = addressList;
             g.cursorList = cursorList;
@@ -107,14 +106,13 @@ public final class FB {
     }
 
     /**
-     * Convenience loader that tries common repo-relative locations.
-     * Tries: ../networks/facebook_combined.txt then networks/facebook_combined.txt
+     * network-data/S1.csv/edges.csv から読み込む。
+     * カレントディレクトリがプロジェクトルートでない場合は loadFromFile(絶対パス) を使用すること。
      */
     public static Network loadDefault() {
         String[] candidates = new String[] {
-            "../networks/facebook_combined.txt",
-            "networks/facebook_combined.txt",
-            // Fallback to absolute path if repository layout differs
+            DEFAULT_EDGES_PATH,
+            "../network-data/S1.csv/edges.csv",
         };
         for (String p : candidates) {
             Path path = Paths.get(p);
@@ -122,35 +120,32 @@ public final class FB {
                 return loadFromFile(p);
             }
         }
-        throw new RuntimeException("facebook_combined.txt not found in expected locations.");
+        throw new RuntimeException("S1 edges not found. Tried: " + DEFAULT_EDGES_PATH + " and ../network-data/S1.csv/edges.csv");
     }
 
-    // Parse helpers to avoid per-line String#split allocations.
-    private static int findSplit(String s) {
-        int n = s.length();
-        for (int i = 0; i < n; i++) {
-            char c = s.charAt(i);
-            if (c == ' ' || c == '\t') return i;
-        }
-        return -1;
-    }
-
-    private static int parseInt(String s, int from, int to) {
-        int i = from;
-        // skip leading spaces
-        while (i < to) {
-            char c = s.charAt(i);
-            if (c != ' ' && c != '\t') break;
-            i++;
-        }
+    private static int parseInt(String s) {
+        if (s == null || s.isEmpty()) throw new RuntimeException("Empty number");
+        s = s.trim();
+        int i = 0;
         int sign = 1;
-        if (i < to && s.charAt(i) == '-') { sign = -1; i++; }
+        if (s.charAt(0) == '-') { sign = -1; i = 1; }
         int val = 0;
-        for (; i < to; i++) {
+        for (; i < s.length(); i++) {
             char c = s.charAt(i);
-            if (c < '0' || c > '9') break;
+            if (c < '0' || c > '9') throw new RuntimeException("Invalid number: " + s);
             val = val * 10 + (c - '0');
         }
         return sign * val;
+    }
+
+    /**
+     * 動作確認用: loadDefault() または第1引数で指定パスを読み込み、グラフ情報を表示。
+     * 例: mvn exec:java -Dexec.mainClass="com.example.network.topology.S1"
+     *     mvn exec:java -Dexec.mainClass="com.example.network.topology.S1" -Dexec.args="network-data/S1.csv/edges.csv"
+     */
+    public static void main(String[] args) {
+        String path = args.length > 0 ? args[0] : null;
+        Network g = path != null ? loadFromFile(path) : loadDefault();
+        g.printGraphInfo();
     }
 }

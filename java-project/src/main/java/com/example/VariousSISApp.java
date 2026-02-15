@@ -109,7 +109,7 @@ public class VariousSISApp {
                 
                 for (int networkTypeIdx = 0; networkTypeIdx < networkTypeList.length; networkTypeIdx++) {
                     String networkType = networkTypeList[networkTypeIdx];
-                    Network net = Network.generateNetwork(networkType, N, k_ave);
+                    Network net = Network.generateNetwork(networkType, N, k_ave, seed);
                     
                     for (int cIdx = 0; cIdx < cList.length; cIdx++) {
                         double c = cList[cIdx];

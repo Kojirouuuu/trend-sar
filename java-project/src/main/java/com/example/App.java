@@ -23,24 +23,32 @@ public class App {
 
     public static void main(String[] args) {
         // === シミュレーションパラメータの設定 ===
-        String networkType = "ER"; // "ER", "BA", "RR" が利用可能
-        int N = 20000;
-        int k_ave = 6;
+        String networkType = "M1"; // "ER", "BA", "RR" が利用可能
+        int N = 1429;
+        int kAve = 6;
         double lambdaMin = 0.00;
-        double lambdaMax = 0.24;
-        double dlambda = 0.0024;
+        double lambdaMax = 0.10;
+        double dlambda = 0.002;
+        // double lambdaMin = 0.02;
+        // double lambdaMax = 0.08;
+        // double dlambda = 0.0008;
         double[] lambdaList = Array.arange(lambdaMin, lambdaMax, dlambda);
 
-        double cMin = 2.0;
+        int N2 = N;
+        int k2 = kAve;
+        int edgeNum = 2;
+
+        double cMin = 1.0;
         double cMax = 2.0;
         double dc = 0.01;
-        double[] cList = Array.arange(cMin, cMax, dc);
+        // double[] cList = Array.arange(cMin, cMax, dc);
+        double[] cList = new double[] {0.0, 1.0};
 
         double rho0Min = 0.0;
         double rho0Max = 1.0;
         double drho0 = 0.1;
         // double[] rho0List = Array.arange(rho0Min, rho0Max, drho0);
-        double[] rho0List = new double[] {0.001, 0.1, 1.0};
+        double[] rho0List = new double[] {1.0};
 
         double mu = 1.0;
         double tmax = 2000.0;
@@ -48,13 +56,13 @@ public class App {
         long seed = 0L;
 
         // itr 回繰り返し、各回のイベント列を1行CSVで書き出し
-        int itr = 20; // 必要に応じて変更
+        int itr = 2; // 必要に応じて変更
         int batchNum = 10;
 
         // === 出力ディレクトリの準備 ===
         String fileType = "final";
         String iniType = "nonbfs";
-        String path = String.format("output/sis/%s/z=%d/N=%dcMin=%.2f%s%s", networkType, k_ave, N, cMin, fileType, iniType);
+        String path = String.format("output/sis/%s/z=%d/N=%dcMin=%.2f%s%s", networkType, kAve, N, cMin, fileType, iniType);
         ensureParentDir(path);
 
         long totalTasks = (long) batchNum * rho0List.length * cList.length * lambdaList.length * itr;
@@ -84,7 +92,9 @@ public class App {
 
                 for (int rho0Idx = 0; rho0Idx < rho0List.length; rho0Idx++) {
                     double rho0 = rho0List[rho0Idx];
-                    Network net = Network.generateNetwork(networkType, N, k_ave);
+                    // バッチ番号 b でネットワーク用シードを分離（並列でも再現可能）
+                    long networkSeed = seed + (long) b * 1_000_000_007L;
+                    Network net = Network.generateNetwork(networkType, N, kAve, N2, k2, edgeNum, networkSeed);
 
                     for (int cIdx = 0; cIdx < cList.length; cIdx++) {
                         double c = cList[cIdx];

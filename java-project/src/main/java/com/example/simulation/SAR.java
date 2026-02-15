@@ -24,7 +24,7 @@ public class SAR {
 
         Random random = new Random();
 
-        Network network = Network.generateNetwork(networkType, N, k_ave);
+        Network network = Network.generateNetwork(networkType, N, k_ave, 0L);
 
         int[] state = new int[network.N];
         int initialInfectedNum = (int)(network.N * rho0);

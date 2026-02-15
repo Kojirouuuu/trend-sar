@@ -8,16 +8,22 @@
 #define N 10000
 #define N_BAR 10000
 #define n_r 2
-#define dt 0.0005
+#define dt 0.05
 
 FILE *fpdata;
-//初期採用者はグラフGのみから選ばれる。
+// 初期採用者はグラフGのみから選ばれる。
 // 内部=同一コミュニティ内の隣接、外部=他コミュニティへの隣接。s[q][m][n]: q=外部リンク数、m=内部隣接I数、n=外部隣接I数。
 double s[Z+1][Z+1][Z+1],ds[Z+1][Z+1][Z+1];// G所属・次数k・外部q本・内部隣接I=m・外部隣接I=n のsとその変化量
 double i[Z+1][Z+1][Z+1],di[Z+1][Z+1][Z+1];// G所属・次数k・外部q本・内部隣接I=m・外部隣接I=n のiとその変化量
 double s_bar[Z_BAR+1][Z_BAR+1][Z_BAR+1],ds_bar[Z_BAR+1][Z_BAR+1][Z_BAR+1];// G_bar所属・次数k・外部q本・内部隣接I=m・外部隣接I=n のsとその変化量
 double i_bar[Z_BAR+1][Z_BAR+1][Z_BAR+1],di_bar[Z_BAR+1][Z_BAR+1][Z_BAR+1];// G_bar所属・次数k・外部q本・内部隣接I=m・外部隣接I=n のiとその変化量
 double S, I;
+/* RK4 用の一時配列 */
+static double s_old[Z+1][Z+1][Z+1], i_old[Z+1][Z+1][Z+1];
+static double s_bar_old[Z_BAR+1][Z_BAR+1][Z_BAR+1], i_bar_old[Z_BAR+1][Z_BAR+1][Z_BAR+1];
+static double k1_s[Z+1][Z+1][Z+1], k1_i[Z+1][Z+1][Z+1], k1_s_bar[Z_BAR+1][Z_BAR+1][Z_BAR+1], k1_i_bar[Z_BAR+1][Z_BAR+1][Z_BAR+1];
+static double k2_s[Z+1][Z+1][Z+1], k2_i[Z+1][Z+1][Z+1], k2_s_bar[Z_BAR+1][Z_BAR+1][Z_BAR+1], k2_i_bar[Z_BAR+1][Z_BAR+1][Z_BAR+1];
+static double k3_s[Z+1][Z+1][Z+1], k3_i[Z+1][Z+1][Z+1], k3_s_bar[Z_BAR+1][Z_BAR+1][Z_BAR+1], k3_i_bar[Z_BAR+1][Z_BAR+1][Z_BAR+1];
 
 double* build_binom_pmf(int k, double p){
     if (k < 0) return NULL;
@@ -97,7 +103,9 @@ static inline double gamma_hype(int infected_neighbors, double mu0, double c){
     return mu0 / (1.0 + c * (double)infected_neighbors);
 }
 
-double step(int k, int k_bar, double lambda, double mu0, double c){
+/* 現在の s, i, s_bar, i_bar から ds, di, ds_bar, di_bar を計算（状態は更新しない） */
+static void compute_derivatives(int k, int k_bar, double lambda, double mu0, double c)
+{
     // ===== 1) コミュニティ1(G)の平均レート λ_in/out, γ_in/out を計算 =====
     double den_bin_S=0, num_bin_S=0;
     double den_bin_I=0, num_bin_I=0;
@@ -316,38 +324,141 @@ double step(int k, int k_bar, double lambda, double mu0, double c){
             }
         }
     }
+}
 
-    // ===== 5) オイラー更新 & 集計 =====
+double step(int k, int k_bar, double lambda, double mu0, double c){
+    int q, m, n;
+
+    /* 現在状態を保存 */
+    for(q=0; q<=k; q++)
+        for(m=0; m<=k-q; m++)
+            for(n=0; n<=q; n++){
+                s_old[q][m][n] = s[q][m][n];
+                i_old[q][m][n] = i[q][m][n];
+            }
+    for(q=0; q<=k_bar; q++)
+        for(m=0; m<=k_bar-q; m++)
+            for(n=0; n<=q; n++){
+                s_bar_old[q][m][n] = s_bar[q][m][n];
+                i_bar_old[q][m][n] = i_bar[q][m][n];
+            }
+
+    /* RK4: k1 */
+    compute_derivatives(k, k_bar, lambda, mu0, c);
+    for(q=0; q<=k; q++)
+        for(m=0; m<=k-q; m++)
+            for(n=0; n<=q; n++){
+                k1_s[q][m][n] = ds[q][m][n];
+                k1_i[q][m][n] = di[q][m][n];
+            }
+    for(q=0; q<=k_bar; q++)
+        for(m=0; m<=k_bar-q; m++)
+            for(n=0; n<=q; n++){
+                k1_s_bar[q][m][n] = ds_bar[q][m][n];
+                k1_i_bar[q][m][n] = di_bar[q][m][n];
+            }
+    for(q=0; q<=k; q++)
+        for(m=0; m<=k-q; m++)
+            for(n=0; n<=q; n++){
+                s[q][m][n] = s_old[q][m][n] + k1_s[q][m][n] * (dt * 0.5);
+                i[q][m][n] = i_old[q][m][n] + k1_i[q][m][n] * (dt * 0.5);
+            }
+    for(q=0; q<=k_bar; q++)
+        for(m=0; m<=k_bar-q; m++)
+            for(n=0; n<=q; n++){
+                s_bar[q][m][n] = s_bar_old[q][m][n] + k1_s_bar[q][m][n] * (dt * 0.5);
+                i_bar[q][m][n] = i_bar_old[q][m][n] + k1_i_bar[q][m][n] * (dt * 0.5);
+            }
+
+    /* RK4: k2 */
+    compute_derivatives(k, k_bar, lambda, mu0, c);
+    for(q=0; q<=k; q++)
+        for(m=0; m<=k-q; m++)
+            for(n=0; n<=q; n++){
+                k2_s[q][m][n] = ds[q][m][n];
+                k2_i[q][m][n] = di[q][m][n];
+            }
+    for(q=0; q<=k_bar; q++)
+        for(m=0; m<=k_bar-q; m++)
+            for(n=0; n<=q; n++){
+                k2_s_bar[q][m][n] = ds_bar[q][m][n];
+                k2_i_bar[q][m][n] = di_bar[q][m][n];
+            }
+    for(q=0; q<=k; q++)
+        for(m=0; m<=k-q; m++)
+            for(n=0; n<=q; n++){
+                s[q][m][n] = s_old[q][m][n] + k2_s[q][m][n] * (dt * 0.5);
+                i[q][m][n] = i_old[q][m][n] + k2_i[q][m][n] * (dt * 0.5);
+            }
+    for(q=0; q<=k_bar; q++)
+        for(m=0; m<=k_bar-q; m++)
+            for(n=0; n<=q; n++){
+                s_bar[q][m][n] = s_bar_old[q][m][n] + k2_s_bar[q][m][n] * (dt * 0.5);
+                i_bar[q][m][n] = i_bar_old[q][m][n] + k2_i_bar[q][m][n] * (dt * 0.5);
+            }
+
+    /* RK4: k3 */
+    compute_derivatives(k, k_bar, lambda, mu0, c);
+    for(q=0; q<=k; q++)
+        for(m=0; m<=k-q; m++)
+            for(n=0; n<=q; n++){
+                k3_s[q][m][n] = ds[q][m][n];
+                k3_i[q][m][n] = di[q][m][n];
+            }
+    for(q=0; q<=k_bar; q++)
+        for(m=0; m<=k_bar-q; m++)
+            for(n=0; n<=q; n++){
+                k3_s_bar[q][m][n] = ds_bar[q][m][n];
+                k3_i_bar[q][m][n] = di_bar[q][m][n];
+            }
+    for(q=0; q<=k; q++)
+        for(m=0; m<=k-q; m++)
+            for(n=0; n<=q; n++){
+                s[q][m][n] = s_old[q][m][n] + k3_s[q][m][n] * dt;
+                i[q][m][n] = i_old[q][m][n] + k3_i[q][m][n] * dt;
+            }
+    for(q=0; q<=k_bar; q++)
+        for(m=0; m<=k_bar-q; m++)
+            for(n=0; n<=q; n++){
+                s_bar[q][m][n] = s_bar_old[q][m][n] + k3_s_bar[q][m][n] * dt;
+                i_bar[q][m][n] = i_bar_old[q][m][n] + k3_i_bar[q][m][n] * dt;
+            }
+
+    /* RK4: k4 および最終更新 y_new = y_old + (dt/6)*(k1 + 2*k2 + 2*k3 + k4) */
+    compute_derivatives(k, k_bar, lambda, mu0, c);
+    for(q=0; q<=k; q++)
+        for(m=0; m<=k-q; m++)
+            for(n=0; n<=q; n++){
+                s[q][m][n] = s_old[q][m][n] + (dt / 6.0) * (k1_s[q][m][n] + 2.0*k2_s[q][m][n] + 2.0*k3_s[q][m][n] + ds[q][m][n]);
+                i[q][m][n] = i_old[q][m][n] + (dt / 6.0) * (k1_i[q][m][n] + 2.0*k2_i[q][m][n] + 2.0*k3_i[q][m][n] + di[q][m][n]);
+            }
+    for(q=0; q<=k_bar; q++)
+        for(m=0; m<=k_bar-q; m++)
+            for(n=0; n<=q; n++){
+                s_bar[q][m][n] = s_bar_old[q][m][n] + (dt / 6.0) * (k1_s_bar[q][m][n] + 2.0*k2_s_bar[q][m][n] + 2.0*k3_s_bar[q][m][n] + ds_bar[q][m][n]);
+                i_bar[q][m][n] = i_bar_old[q][m][n] + (dt / 6.0) * (k1_i_bar[q][m][n] + 2.0*k2_i_bar[q][m][n] + 2.0*k3_i_bar[q][m][n] + di_bar[q][m][n]);
+            }
+
+    /* 集計 */
     double S_G = 0.0, I_G = 0.0;
-    for(int q=0; q<=k; q++){
-        for(int m=0; m<=k-q; m++){
-            for(int n=0; n<=q; n++){
-                s[q][m][n] += ds[q][m][n] * dt;
-                i[q][m][n] += di[q][m][n] * dt;
+    for(q=0; q<=k; q++)
+        for(m=0; m<=k-q; m++)
+            for(n=0; n<=q; n++){
                 S_G += s[q][m][n];
                 I_G += i[q][m][n];
             }
-        }
-    }
-
     double S_Gb = 0.0, I_Gb = 0.0;
-    for(int q=0; q<=k_bar; q++){
-        for(int m=0; m<=k_bar-q; m++){
-            for(int n=0; n<=q; n++){
-                s_bar[q][m][n] += ds_bar[q][m][n] * dt;
-                i_bar[q][m][n] += di_bar[q][m][n] * dt;
+    for(q=0; q<=k_bar; q++)
+        for(m=0; m<=k_bar-q; m++)
+            for(n=0; n<=q; n++){
                 S_Gb += s_bar[q][m][n];
                 I_Gb += i_bar[q][m][n];
             }
-        }
-    }
-
-    // ここでグローバルの S,I は「全体（N,N_BARで重み）」にしておく
     const double denom = (double)N + (double)N_BAR;
     S = ((double)N * S_G + (double)N_BAR * S_Gb) / denom;
     I = ((double)N * I_G + (double)N_BAR * I_Gb) / denom;
 
-    return I; // ← G側だけ返すなら return I_G;
+    return I;
 }
 
 
@@ -360,7 +471,7 @@ void evolve(double lambda,double mu0,double c,double rho,int k,int k_bar,int is_
         I_prev=I;
         ++itr;
         I=step(k,k_bar,lambda,mu0,c);
-    } while (itr<10000 || fabs(I-I_prev)>0.000000001);
+    } while (itr<10000 || fabs(I-I_prev)>0.000001);
 
     if (is_final){
         fprintf(fpdata, "%d,%.6f, %.6f, %.6f, %.6f, %.6f\n",n_r,lambda, mu0, c, rho, I);

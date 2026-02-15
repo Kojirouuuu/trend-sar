@@ -4,7 +4,9 @@ import com.example.network.topology.BA;
 import com.example.network.topology.ER;
 import com.example.network.topology.RR;
 import com.example.network.topology.FB;
-
+import com.example.network.topology.TwoRR;
+import com.example.network.topology.S1;
+import com.example.network.topology.M1;
 
 /**
  * グラフ構造を表現するクラス
@@ -17,15 +19,34 @@ public class Network {
     public int[] addressList;  // 各ノードのアドレス情報
     public int[] cursorList;   // 各ノードの現在の隣接ノード数
 
-    public static Network generateNetwork(String networkType, int N, int k_ave) {
+    /** ER / BA / RR / FB 用。seed で再現可能。TwoRR の場合は 7 引数版を使用すること。 */
+    public static Network generateNetwork(String networkType, int N, int k_ave, long seed) {
+        if (networkType.equals("TwoRR")) {
+            throw new IllegalArgumentException("TwoRR の場合は generateNetwork(networkType, N, k_ave, N2, k2, edgeNum, seed) を使用してください");
+        }
+        return generateNetworkImpl(networkType, N, k_ave, 0, 0, 0, seed);
+    }
+
+    /** TwoRR 用。N2: 第2モジュールのノード数、k2: 第2モジュールの次数、edgeNum: 橋渡しエッジ数。 */
+    public static Network generateNetwork(String networkType, int N, int k_ave, int N2, int k2, int edgeNum, long seed) {
+        return generateNetworkImpl(networkType, N, k_ave, N2, k2, edgeNum, seed);
+    }
+
+    private static Network generateNetworkImpl(String networkType, int N, int k_ave, int N2, int k2, int edgeNum, long seed) {
         if (networkType.equals("ER")) {
-            return ER.generateER(N, ((double)k_ave / (N - 1)));
+            return ER.generateER(N, (double) k_ave / (N - 1), seed);
         } else if (networkType.equals("BA")) {
-            return BA.generateBA(N, k_ave/2, k_ave/2);
+            return BA.generateBA(N, k_ave / 2, k_ave / 2, seed);
         } else if (networkType.equals("RR")) {
-            return RR.generateRR(N, k_ave);
+            return RR.generateRR(N, k_ave, seed);
         } else if (networkType.equals("FB")) {
             return FB.loadDefault();
+        } else if (networkType.equals("TwoRR")) {
+            return TwoRR.generate2RR(N, k_ave, N2, k2, edgeNum, seed);
+        } else if (networkType.equals("S1")) {
+            return S1.loadDefault();
+        } else if (networkType.equals("M1")) {
+            return M1.loadDefault();
         } else {
             throw new IllegalArgumentException("無効なネットワークタイプ: " + networkType);
         }

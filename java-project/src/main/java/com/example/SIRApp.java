@@ -39,7 +39,7 @@ public class SIRApp {
         String path = String.format("output/sir/%s/z=%d/N=%d", networkType, k_ave, N);
         ensureParentDir(path);
 
-        Network net = Network.generateNetwork(networkType, N, k_ave);
+        Network net = Network.generateNetwork(networkType, N, k_ave, seed);
 
         // パラメータを辞書っぽくCSVに保存
         Params params = new Params()
