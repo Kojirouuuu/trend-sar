@@ -8,6 +8,14 @@ import com.example.network.topology.TwoRR;
 import com.example.network.topology.S1;
 import com.example.network.topology.M1;
 
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * グラフ構造を表現するクラス
  * ネットワークのノードとエッジの情報を管理
@@ -202,6 +210,52 @@ public class Network {
     /** ノード u の次数を返すユーティリティ */
     public int degree(int u) {
         return cursorList[u] - addressList[u];
+    }
+
+    /**
+     * Gephi で読み込める GEXF (Graph Exchange XML Format) ファイルを出力する。
+     * 無向グラフとして書き出す。
+     *
+     * @param path 出力先ファイルパス（例: output/network.gexf）
+     * @throws IOException ファイル書き込みに失敗した場合
+     */
+    public void exportToGexf(Path path) throws IOException {
+        if (edgeList == null || addressList == null || cursorList == null) {
+            throw new IllegalStateException("ネットワークが初期化されていません");
+        }
+        Path parent = path.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+        try (BufferedWriter w = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
+            w.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+            w.write("<gexf xmlns=\"http://www.gexf.net/1.2draft\" version=\"1.2\">\n");
+            w.write("  <graph mode=\"static\" defaultedgetype=\"undirected\">\n");
+            w.write("    <nodes>\n");
+            for (int i = 0; i < N; i++) {
+                w.write("      <node id=\"" + i + "\" label=\"" + i + "\"/>\n");
+            }
+            w.write("    </nodes>\n");
+            w.write("    <edges>\n");
+            Set<String> seen = new HashSet<>();
+            int edgeId = 0;
+            for (int u = 0; u < N; u++) {
+                for (int j = addressList[u]; j < cursorList[u]; j++) {
+                    int v = edgeList[j];
+                    if (u == v) continue; // 自己ループは出力しない
+                    int a = Math.min(u, v);
+                    int b = Math.max(u, v);
+                    String key = a + "\t" + b;
+                    if (seen.add(key)) {
+                        w.write("      <edge id=\"" + edgeId + "\" source=\"" + a + "\" target=\"" + b + "\"/>\n");
+                        edgeId++;
+                    }
+                }
+            }
+            w.write("    </edges>\n");
+            w.write("  </graph>\n");
+            w.write("</gexf>\n");
+        }
     }
 
     /* ===== 内部ワーク配列（マーキング用） =====

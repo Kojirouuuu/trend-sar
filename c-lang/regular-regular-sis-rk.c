@@ -8,7 +8,7 @@
 #define N 10000
 #define N_BAR 10000
 #define n_r 2
-#define dt 0.05
+#define dt 1e-4
 
 FILE *fpdata;
 // 初期採用者はグラフGのみから選ばれる。
@@ -471,7 +471,7 @@ void evolve(double lambda,double mu0,double c,double rho,int k,int k_bar,int is_
         I_prev=I;
         ++itr;
         I=step(k,k_bar,lambda,mu0,c);
-    } while (itr<10000 || fabs(I-I_prev)>0.000001);
+    } while (itr<100000 || fabs(I-I_prev)>1e-10);
 
     if (is_final){
         fprintf(fpdata, "%d,%.6f, %.6f, %.6f, %.6f, %.6f\n",n_r,lambda, mu0, c, rho, I);
@@ -489,22 +489,22 @@ int main(void){
     int is_final=1;
 
     double lambda_min=0.0;
-    double lambda_max=0.3;
-    double lambda_step=0.0003;
+    double lambda_max=0.1;
+    double lambda_step=0.002;
 
     double mu0=1.0;
-    double c_min=0.1;
-    double c_max=0.1;
-    double c_step=0.03;
+    double c_min=2.0;
+    double c_max=2.0;
+    double c_step=0.05;
     double rho=1.0;
     char fname[64];
 
     if(mkdir("ame", 0755) == -1 && errno != EEXIST){}
     if(mkdir("ame/sis", 0755) == -1 && errno != EEXIST){}
-    if(mkdir("ame/sis/c=0.1", 0755) == -1 && errno != EEXIST){}
+    if(mkdir("ame/sis/c=2.0", 0755) == -1 && errno != EEXIST){}
 
     char *z_str = malloc(64);
-    sprintf(z_str, "ame/sis/c=0.1/z=%d_z_bar=%d", Z, Z_BAR);
+    sprintf(z_str, "ame/sis/c=2.0/z=%d_z_bar=%dn_r=%d", Z, Z_BAR, n_r);
     if(mkdir(z_str, 0755) == -1 && errno != EEXIST){}
     
     sprintf(fname, "%s/is_final=%s.csv", z_str, is_final==1 ? "true" : "false");
@@ -519,21 +519,15 @@ int main(void){
         fprintf(fpdata, "n_r,time,lambda,mu0,c,rho,I\n");
     }
 
-    int length_lambda=(lambda_max-lambda_min)/lambda_step+1;
-    int length_c=(c_max-c_min)/c_step+1;
-    total=length_lambda;
-    // total=length_lambda*length_c;
+    /* 二重ループの格子点数 */
+    int length_lambda=0;
+    for(double l=lambda_min; l<=lambda_max+1e-12; l+=lambda_step) length_lambda++;
+    int length_c=0;
+    for(double cval=c_min; cval<=c_max+1e-12; cval+=c_step) length_c++;
+    total=length_lambda*length_c;
     done=0;
     for(double lambda=lambda_min;lambda<=lambda_max+1e-12;lambda+=lambda_step){
-        // for(double c=c_min;c<=c_max+1e-12;c+=c_step){
-        for(double cidx=0;cidx<1;cidx+=1){
-            double c;
-            if (cidx==0){
-                c=0.1;
-            }
-            else{
-                exit(1);
-            }
+        for(double c=c_min;c<=c_max+1e-12;c+=c_step){
             evolve(lambda,mu0,c,rho,Z,Z_BAR,is_final);
             ++done;
             {

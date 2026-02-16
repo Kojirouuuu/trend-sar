@@ -1,14 +1,21 @@
 package com.example;
 
 import com.example.network.Network;
-import com.example.network.topology.M1;
+import java.nio.file.Path;
+import java.io.IOException;
 
 public class NetworkTest {
     public static void main(String[] args) {
-        int N = 1429;
-        int k_ave = 10;
-        int edgeNum = 0;
-        Network net = Network.generateNetwork("M1", N, k_ave, edgeNum);
+        int N = 400;
+        int k_ave = 6;
+        int edgeNum = 4;
+        Network net = Network.generateNetwork("TwoRR", N, k_ave, N, k_ave, edgeNum, 0L);
+        Path outputPath = Path.of("output/network/TwoRR/N=" + N + "_k=" + k_ave + "_edgeNum=" + edgeNum + ".gexf");
+        try {
+            net.exportToGexf(outputPath);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         System.out.println("ネットワーク情報");
         net.printGraphInfo();

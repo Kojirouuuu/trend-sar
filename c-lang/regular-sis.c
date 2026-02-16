@@ -128,16 +128,16 @@ int main(void){
     int is_final=1;
 
     double lambda_min=0.0;
-    double lambda_max=2.0;
-    double lambda_step=0.002;
+    double lambda_max=0.1;
+    double lambda_step=0.0001;
 
-    double mu0_min=0.0;
-    double mu0_max=10.0;
+    double mu0_min=1.0;
+    double mu0_max=1.0;
     double mu0_step=0.01;
-    double c_min=0.0;
-    double c_max=0.0;
+    double c_min=2.0;
+    double c_max=2.0;
     double c_step=0.01;
-    double rho=1.0;
+    double rho=1e-5;
     char fname[64];
 
     if(mkdir("ame", 0755) == -1 && errno != EEXIST){}

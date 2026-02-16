@@ -23,26 +23,26 @@ public class App {
 
     public static void main(String[] args) {
         // === シミュレーションパラメータの設定 ===
-        String networkType = "M1"; // "ER", "BA", "RR" が利用可能
-        int N = 1429;
+        String networkType = "TwoRR"; // "ER", "BA", "RR" が利用可能
+        int N = 10000;
         int kAve = 6;
+        // double lambdaMin = 0.00;
+        // double lambdaMax = 0.30;
+        // double dlambda = 0.006;
         double lambdaMin = 0.00;
         double lambdaMax = 0.10;
         double dlambda = 0.002;
-        // double lambdaMin = 0.02;
-        // double lambdaMax = 0.08;
-        // double dlambda = 0.0008;
         double[] lambdaList = Array.arange(lambdaMin, lambdaMax, dlambda);
 
         int N2 = N;
         int k2 = kAve;
-        int edgeNum = 2;
+        int edgeNum = 4;
 
-        double cMin = 1.0;
+        double cMin = 2.0;
         double cMax = 2.0;
         double dc = 0.01;
         // double[] cList = Array.arange(cMin, cMax, dc);
-        double[] cList = new double[] {0.0, 1.0};
+        double[] cList = new double[] {cMin};
 
         double rho0Min = 0.0;
         double rho0Max = 1.0;
@@ -56,13 +56,13 @@ public class App {
         long seed = 0L;
 
         // itr 回繰り返し、各回のイベント列を1行CSVで書き出し
-        int itr = 2; // 必要に応じて変更
+        int itr = 20; // 必要に応じて変更
         int batchNum = 10;
 
         // === 出力ディレクトリの準備 ===
         String fileType = "final";
         String iniType = "nonbfs";
-        String path = String.format("output/sis/%s/z=%d/N=%dcMin=%.2f%s%s", networkType, kAve, N, cMin, fileType, iniType);
+        String path = String.format("output/sis/%s/edgeNum=%d/z=%d/N=%dcMin=%.2f%s%s", networkType, edgeNum, kAve, N, cMin, fileType, iniType);
         ensureParentDir(path);
 
         long totalTasks = (long) batchNum * rho0List.length * cList.length * lambdaList.length * itr;
@@ -118,7 +118,8 @@ public class App {
                                 int itrVal = b * itr + it2;
                                 double time = T[T.length - 1];
                                 int iFinal = I[I.length - 1];
-                                int sFinal = N - iFinal;
+                                int totalNodes = net.N; // TwoRR では N1+N2、それ以外は N
+                                int sFinal = totalNodes - iFinal;
 
                                 if (includeTime) {
                                     csv.write(String.format("%d,%.6g,%.6g,%.6g,%.6g,%.6g,%d,%d%n",

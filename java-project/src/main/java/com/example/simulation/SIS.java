@@ -71,7 +71,8 @@ public class SIS {
         }
 
         int findByCumsum(double target) {
-            // Smallest idx such that prefixSum(idx) >= target, assuming 0 <= target < total()
+            // Smallest idx (0-based) such that prefixSum(idx) >= target, assuming 0 <= target < total()
+            // Tree is 1-indexed; walk yields 1-based position, so return (i - 1) capped to [0, n-1].
             int i = 0;
             int bit = Integer.highestOneBit(n);
             while (bit != 0) {
@@ -82,7 +83,8 @@ public class SIS {
                 }
                 bit >>= 1;
             }
-            int idx = Math.min(i, n - 1);
+            // i is 1-based tree index → 0-based array index
+            int idx = (i <= 0) ? 0 : Math.min(i, n) - 1;
             return idx;
         }
     }
@@ -280,10 +282,21 @@ public class SIS {
                 int i = src[eidx];
                 int j = edges[eidx]; // i -> j (j should be S)
 
-                // 1) deactivate the used I->S edge
+                // 1) 使った辺と、j を指す全辺を先に deactivate（二重カウント防止。TwoRR 等で複数 I→j が active になり得る）
                 deactivate.accept(eidx);
+                {
+                    int sj = rowptr[j];
+                    int tj = rowptr[j + 1];
+                    for (int ejn = sj; ejn < tj; ejn++) deactivate.accept(rev[ejn]);
+                }
 
-                // 2) infect j
+                // 2) j がすでに I の場合は何もしない（上で in-edge は消済み）。時刻は進んでいるので系列に現在状態を追加
+                if (state[j] != 0) {
+                    Iseries.add(currentInfected);
+                    Tseries.add(currentTime);
+                    continue;
+                }
+
                 state[j] = 1;
                 currentInfected += 1;
 
@@ -294,7 +307,7 @@ public class SIS {
                     recoverRate[j] = newRj;
                 }
 
-                // 4) neighbors update
+                // 4) neighbors update（j を指す辺は上で既に deactivate 済み）
                 int s = rowptr[j];
                 int t = rowptr[j + 1];
                 for (int ejn = s; ejn < t; ejn++) {
@@ -304,9 +317,7 @@ public class SIS {
                         // j->n becomes I->S
                         activate.accept(ejn);
                     } else {
-                        // n is I: n->j becomes I->I -> deactivate
-                        deactivate.accept(rev[ejn]);
-                        // recovery rate of n decreases
+                        // n is I: recovery rate of n decreases
                         double old = recoverRate[n];
                         double neu = gamma / (1.0 + c * kInf[n]);
                         if (old != neu) {
@@ -316,13 +327,28 @@ public class SIS {
                     }
                 }
 
+                if (currentInfected < 0 || currentInfected > N) {
+                    throw new IllegalStateException("after infection: currentInfected=" + currentInfected + ", N=" + N);
+                }
                 Iseries.add(currentInfected);
                 Tseries.add(currentTime);
             } else {
                 // Recovery event: sample node by weight
                 double r2 = r - totalInfect;
                 if (r2 < 0) r2 = 0; // guard
-                int i = bit.findByCumsum(r2);
+                // r2 が 0 だと累積和 0 の S ノードが返ることがあるので、微小な正値にクランプ
+                double r2c = (r2 <= 0.0 || totalRecover <= 0.0) ? 1e-12 : Math.min(r2, totalRecover * (1.0 - 1e-12));
+                int i = bit.findByCumsum(r2c);
+                // 累積和が S ノードで増えないため、findByCumsum が S のインデックスを返すことがある。後ろ向きに最初の I をとる。
+                while (i >= 0 && state[i] == 0) i--;
+                if (i < 0) {
+                    // r2≈0 で 0 が返った場合: 最初の感染ノードを探す
+                    for (i = 0; i < N; i++) if (state[i] == 1) break;
+                    if (i >= N) {
+                        throw new IllegalStateException(
+                            "recovery: no infected node found (currentInfected=" + currentInfected + ", totalRecover=" + bit.total() + ")");
+                    }
+                }
 
                 // neighbors update before flipping state
                 int s = rowptr[i];
@@ -353,6 +379,9 @@ public class SIS {
                 state[i] = 0;
                 currentInfected -= 1;
 
+                if (currentInfected < 0 || currentInfected > N) {
+                    throw new IllegalStateException("after recovery: currentInfected=" + currentInfected + ", N=" + N);
+                }
                 Iseries.add(currentInfected);
                 Tseries.add(currentTime);
             }
